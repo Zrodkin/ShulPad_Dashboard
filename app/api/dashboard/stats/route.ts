@@ -1,0 +1,154 @@
+// app/api/dashboard/stats/route.ts
+// Get dashboard statistics (total donations, donors, averages, etc.)
+
+import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { createClient } from '@/lib/db'
+
+export async function GET(request: NextRequest) {
+  try {
+    // Require authentication
+    await requireAuth()
+    const organization_id = await getCurrentOrganizationId()
+
+    if (!organization_id) {
+      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    }
+
+    const searchParams = request.nextUrl.searchParams
+    const period = searchParams.get('period') || 'all' // today, week, month, all
+
+    const db = createClient()
+
+    // Build date filter based on period
+    let dateFilter = ''
+    switch (period) {
+      case 'today':
+        dateFilter = 'AND DATE(d.created_at) = CURDATE()'
+        break
+      case 'week':
+        dateFilter = 'AND d.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)'
+        break
+      case 'month':
+        dateFilter = 'AND d.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)'
+        break
+      case 'year':
+        dateFilter = 'AND d.created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)'
+        break
+      default:
+        dateFilter = ''
+    }
+
+    // Get overall statistics
+    const statsResult = await db.execute(
+      `SELECT 
+        COUNT(DISTINCT d.id) as total_donations,
+        COUNT(DISTINCT d.donor_email) as unique_donors,
+        COALESCE(SUM(d.amount), 0) as total_amount,
+        COALESCE(AVG(d.amount), 0) as average_donation,
+        COUNT(DISTINCT CASE WHEN d.is_recurring = 1 THEN d.id END) as recurring_donations,
+        COUNT(DISTINCT CASE WHEN d.receipt_sent = 1 THEN d.id END) as receipts_sent
+      FROM donations d
+      WHERE d.organization_id = ?
+        AND d.payment_status = 'COMPLETED'
+        ${dateFilter}`,
+      [organization_id]
+    )
+
+    const stats = statsResult.rows[0]
+
+    // Get comparison with previous period
+    let comparisonFilter = ''
+    switch (period) {
+      case 'today':
+        comparisonFilter = 'AND DATE(d.created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY)'
+        break
+      case 'week':
+        comparisonFilter = 'AND d.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) AND d.created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)'
+        break
+      case 'month':
+        comparisonFilter = 'AND d.created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY) AND d.created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)'
+        break
+      default:
+        comparisonFilter = ''
+    }
+
+    let previousStats = { total_amount: 0, total_donations: 0 }
+    if (comparisonFilter) {
+      const comparisonResult = await db.execute(
+        `SELECT 
+          COUNT(id) as total_donations,
+          COALESCE(SUM(amount), 0) as total_amount
+        FROM donations
+        WHERE organization_id = ?
+          AND payment_status = 'COMPLETED'
+          ${comparisonFilter}`,
+        [organization_id]
+      )
+      previousStats = comparisonResult.rows[0]
+    }
+
+    // Calculate percentage changes
+    const amountChange = previousStats.total_amount > 0
+      ? ((stats.total_amount - previousStats.total_amount) / previousStats.total_amount * 100).toFixed(1)
+      : 0
+
+    const countChange = previousStats.total_donations > 0
+      ? ((stats.total_donations - previousStats.total_donations) / previousStats.total_donations * 100).toFixed(1)
+      : 0
+
+    // Get active kiosks count (organizations with recent donations)
+    const kiosksResult = await db.execute(
+      `SELECT COUNT(DISTINCT location_id) as active_kiosks
+       FROM square_connections
+       WHERE organization_id = ?`,
+      [organization_id]
+    )
+
+    // Get recent donations trend (last 30 days, grouped by day)
+    const trendResult = await db.execute(
+      `SELECT 
+        DATE(created_at) as date,
+        COUNT(id) as count,
+        COALESCE(SUM(amount), 0) as total
+      FROM donations
+      WHERE organization_id = ?
+        AND payment_status = 'COMPLETED'
+        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC`,
+      [organization_id]
+    )
+
+    return NextResponse.json({
+      period,
+      stats: {
+        total_donations: parseInt(stats.total_donations),
+        total_amount: parseFloat(stats.total_amount).toFixed(2),
+        average_donation: parseFloat(stats.average_donation).toFixed(2),
+        unique_donors: parseInt(stats.unique_donors),
+        recurring_donations: parseInt(stats.recurring_donations),
+        receipts_sent: parseInt(stats.receipts_sent),
+        active_kiosks: parseInt(kiosksResult.rows[0]?.active_kiosks || 1),
+      },
+      changes: {
+        amount_change: parseFloat(amountChange),
+        count_change: parseFloat(countChange),
+      },
+      trend: trendResult.rows.map((row: any) => ({
+        date: row.date,
+        count: parseInt(row.count),
+        total: parseFloat(row.total).toFixed(2),
+      })),
+    })
+
+  } catch (error: any) {
+    console.error('Error fetching dashboard stats:', error)
+    
+    if (error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
