@@ -5,26 +5,65 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGri
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { FileDown, FileText, FileSpreadsheet } from "lucide-react"
+import { useEffect, useState } from "react"
 
-const donationsByMonth = [
-  { month: "Jul", amount: 3200 },
-  { month: "Aug", amount: 4100 },
-  { month: "Sep", amount: 3800 },
-  { month: "Oct", amount: 4500 },
-  { month: "Nov", amount: 5200 },
-  { month: "Dec", amount: 6100 },
-  { month: "Jan", amount: 5800 },
-]
+interface MonthData {
+  month: string
+  amount: number
+}
 
-const donationsByKiosk = [
-  { name: "Main Lobby", value: 12500, color: "hsl(var(--chart-1))" },
-  { name: "East Wing", value: 8900, color: "hsl(var(--chart-2))" },
-  { name: "West Wing", value: 7200, color: "hsl(var(--chart-3))" },
-  { name: "North Entrance", value: 6800, color: "hsl(var(--chart-4))" },
-  { name: "South Hall", value: 5400, color: "hsl(var(--chart-5))" },
-]
+interface KioskData {
+  name: string
+  value: number
+  color: string
+  [key: string]: string | number
+}
+
+interface ReportsData {
+  donationsByMonth: MonthData[]
+  donationsByKiosk: KioskData[]
+  insights: {
+    bestPerformingKiosk: {
+      name: string
+      total: number
+    }
+    peakTime: string
+    growthRate: string
+  }
+}
 
 export function ReportsContent() {
+  const [reportsData, setReportsData] = useState<ReportsData>({
+    donationsByMonth: [],
+    donationsByKiosk: [],
+    insights: {
+      bestPerformingKiosk: { name: 'N/A', total: 0 },
+      peakTime: 'N/A',
+      growthRate: '0',
+    },
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchReportsData = async () => {
+      try {
+        const response = await fetch('/api/dashboard/reports')
+        if (response.ok) {
+          const data = await response.json()
+          setReportsData(data)
+        }
+      } catch (error) {
+        console.error('Error fetching reports data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchReportsData()
+  }, [])
+
+  const donationsByMonth = reportsData.donationsByMonth
+  const donationsByKiosk = reportsData.donationsByKiosk
   const handleExportCSV = () => {
     const csvData = [
       ["Month", "Amount"],
@@ -87,22 +126,28 @@ export function ReportsContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-              <BarChart data={donationsByMonth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "var(--radius)",
-                    fontSize: "12px",
-                  }}
-                />
-                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {loading ? (
+              <div className="text-center py-16 text-muted-foreground">Loading chart data...</div>
+            ) : donationsByMonth.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">No data available</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+                <BarChart data={donationsByMonth}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -114,34 +159,40 @@ export function ReportsContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-              <PieChart>
-                <Pie
-                  data={donationsByKiosk}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={60}
-                  className="sm:outerRadius-[80]"
-                  fill="#8884d8"
-                  dataKey="value"
-                  style={{ fontSize: "10px" }}
-                >
-                  {donationsByKiosk.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "var(--radius)",
-                    fontSize: "12px",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {loading ? (
+              <div className="text-center py-16 text-muted-foreground">Loading chart data...</div>
+            ) : donationsByKiosk.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">No data available</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+                <PieChart>
+                  <Pie
+                    data={donationsByKiosk}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={60}
+                    className="sm:outerRadius-[80]"
+                    fill="#8884d8"
+                    dataKey="value"
+                    style={{ fontSize: "10px" }}
+                  >
+                    {donationsByKiosk.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "var(--radius)",
+                      fontSize: "12px",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -152,8 +203,18 @@ export function ReportsContent() {
             <CardTitle className="text-sm sm:text-base">Best Performing Kiosk</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-semibold text-foreground">Main Lobby</div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">$12,500 total donations</p>
+            {loading ? (
+              <div className="text-muted-foreground text-sm">Loading...</div>
+            ) : (
+              <>
+                <div className="text-xl sm:text-2xl font-semibold text-foreground">
+                  {reportsData.insights.bestPerformingKiosk.name}
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  ${reportsData.insights.bestPerformingKiosk.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total donations
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -162,8 +223,16 @@ export function ReportsContent() {
             <CardTitle className="text-sm sm:text-base">Peak Donation Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-semibold text-foreground">2-4 PM</div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Weekdays see highest activity</p>
+            {loading ? (
+              <div className="text-muted-foreground text-sm">Loading...</div>
+            ) : (
+              <>
+                <div className="text-xl sm:text-2xl font-semibold text-foreground">
+                  {reportsData.insights.peakTime}
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Based on last 90 days</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -172,8 +241,16 @@ export function ReportsContent() {
             <CardTitle className="text-sm sm:text-base">Growth Rate</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-semibold text-foreground">+24.5%</div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Compared to last quarter</p>
+            {loading ? (
+              <div className="text-muted-foreground text-sm">Loading...</div>
+            ) : (
+              <>
+                <div className="text-xl sm:text-2xl font-semibold text-foreground">
+                  {parseFloat(reportsData.insights.growthRate) >= 0 ? '+' : ''}{reportsData.insights.growthRate}%
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Compared to previous 90 days</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
