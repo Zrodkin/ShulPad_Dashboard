@@ -1,176 +1,171 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Download, Filter, Search, X } from "lucide-react"
+import { Download, Filter, Search, X, Loader2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 
-const transactions = [
-  {
-    id: "TXN-001",
-    donor: "Sarah Johnson",
-    donorEmail: "sarah.j@email.com",
-    amount: 50.0,
-    date: "2024-01-15",
-    kiosk: "Main Lobby",
-    status: "completed",
-    paymentMethod: "Credit Card",
-  },
-  {
-    id: "TXN-002",
-    donor: "Michael Chen",
-    donorEmail: "m.chen@email.com",
-    amount: 100.0,
-    date: "2024-01-15",
-    kiosk: "East Wing",
-    status: "completed",
-    paymentMethod: "Debit Card",
-  },
-  {
-    id: "TXN-003",
-    donor: "Emily Rodriguez",
-    donorEmail: "emily.r@email.com",
-    amount: 25.0,
-    date: "2024-01-14",
-    kiosk: "Main Lobby",
-    status: "completed",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "TXN-004",
-    donor: "David Kim",
-    donorEmail: "d.kim@email.com",
-    amount: 75.0,
-    date: "2024-01-14",
-    kiosk: "West Wing",
-    status: "pending",
-    paymentMethod: "Credit Card",
-  },
-  {
-    id: "TXN-005",
-    donor: "Lisa Anderson",
-    donorEmail: "lisa.a@email.com",
-    amount: 150.0,
-    date: "2024-01-13",
-    kiosk: "Main Lobby",
-    status: "completed",
-    paymentMethod: "Credit Card",
-  },
-  {
-    id: "TXN-006",
-    donor: "Anonymous",
-    donorEmail: "",
-    amount: 30.0,
-    date: "2024-01-13",
-    kiosk: "East Wing",
-    status: "completed",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "TXN-007",
-    donor: "Sarah Johnson",
-    donorEmail: "sarah.j@email.com",
-    amount: 200.0,
-    date: "2024-01-12",
-    kiosk: "Main Lobby",
-    status: "completed",
-    paymentMethod: "Credit Card",
-  },
-  {
-    id: "TXN-008",
-    donor: "Robert Taylor",
-    donorEmail: "r.taylor@email.com",
-    amount: 45.0,
-    date: "2024-01-11",
-    kiosk: "West Wing",
-    status: "failed",
-    paymentMethod: "Credit Card",
-  },
-]
+interface Donation {
+  id: number
+  amount: number
+  currency: string
+  donor_name: string | null
+  donor_email: string | null
+  payment_id: string | null
+  square_order_id: string | null
+  payment_status: string
+  receipt_sent: boolean
+  is_recurring: boolean
+  created_at: string
+  updated_at: string
+}
 
 interface TransactionsContentProps {
   onViewTransaction: (transactionId: string) => void
 }
 
 export function TransactionsContent({ onViewTransaction }: TransactionsContentProps) {
+  const [transactions, setTransactions] = useState<Donation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [kioskFilter, setKioskFilter] = useState<string>("all")
   const [dateFilter, setDateFilter] = useState<string>("all")
   const [showFilters, setShowFilters] = useState(false)
+  
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
 
-  const uniqueKiosks = useMemo(() => {
-    return Array.from(new Set(transactions.map((t) => t.kiosk)))
-  }, [])
+  useEffect(() => {
+    fetchTransactions()
+  }, [page, statusFilter, dateFilter, searchQuery])
 
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
-      // Search filter
-      const matchesSearch =
-        searchQuery === "" ||
-        transaction.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        transaction.donor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        transaction.kiosk.toLowerCase().includes(searchQuery.toLowerCase())
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true)
+      setError(null)
 
-      // Status filter
-      const matchesStatus = statusFilter === "all" || transaction.status === statusFilter
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '50',
+      })
 
-      // Kiosk filter
-      const matchesKiosk = kioskFilter === "all" || transaction.kiosk === kioskFilter
-
-      // Date filter
-      let matchesDate = true
-      if (dateFilter !== "all") {
-        const transactionDate = new Date(transaction.date)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-
-        if (dateFilter === "today") {
-          matchesDate = transactionDate >= today
-        } else if (dateFilter === "week") {
-          const weekAgo = new Date(today)
-          weekAgo.setDate(weekAgo.getDate() - 7)
-          matchesDate = transactionDate >= weekAgo
-        } else if (dateFilter === "month") {
-          const monthAgo = new Date(today)
-          monthAgo.setMonth(monthAgo.getMonth() - 1)
-          matchesDate = transactionDate >= monthAgo
-        }
+      if (searchQuery) {
+        params.append('search', searchQuery)
       }
 
-      return matchesSearch && matchesStatus && matchesKiosk && matchesDate
-    })
-  }, [searchQuery, statusFilter, kioskFilter, dateFilter])
+      if (statusFilter !== 'all') {
+        // Map 'completed' to 'COMPLETED', etc.
+        params.append('payment_status', statusFilter.toUpperCase())
+      }
 
-  const handleExport = () => {
-    const headers = ["Transaction ID", "Donor", "Amount", "Date", "Kiosk", "Status"]
-    const csvContent = [
-      headers.join(","),
-      ...filteredTransactions.map((t) =>
-        [t.id, t.donor, `$${t.amount.toFixed(2)}`, t.date, t.kiosk, t.status].join(","),
-      ),
-    ].join("\n")
+      // Handle date filters
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
 
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`
-    a.click()
+      if (dateFilter === 'today') {
+        params.append('start_date', today.toISOString().split('T')[0])
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(today)
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        params.append('start_date', weekAgo.toISOString().split('T')[0])
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(today)
+        monthAgo.setMonth(monthAgo.getMonth() - 1)
+        params.append('start_date', monthAgo.toISOString().split('T')[0])
+      }
+
+      const response = await fetch(`/api/dashboard/donations?${params.toString()}`)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = '/dashboard/login'
+          return
+        }
+        throw new Error('Failed to fetch transactions')
+      }
+
+      const data = await response.json()
+      setTransactions(data.donations)
+      setTotalPages(data.pagination.total_pages)
+      setTotalCount(data.pagination.total_count)
+    } catch (err: any) {
+      console.error('Error fetching transactions:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams({ format: 'csv' })
+      if (searchQuery) params.append('search', searchQuery)
+      if (statusFilter !== 'all') params.append('payment_status', statusFilter.toUpperCase())
+      
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      if (dateFilter === 'today') {
+        params.append('start_date', today.toISOString().split('T')[0])
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date(today)
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        params.append('start_date', weekAgo.toISOString().split('T')[0])
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date(today)
+        monthAgo.setMonth(monthAgo.getMonth() - 1)
+        params.append('start_date', monthAgo.toISOString().split('T')[0])
+      }
+
+      const response = await fetch(`/api/dashboard/export?${params.toString()}`)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`
+      a.click()
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
   }
 
   const handleClearFilters = () => {
     setSearchQuery("")
     setStatusFilter("all")
-    setKioskFilter("all")
     setDateFilter("all")
   }
 
-  const hasActiveFilters = searchQuery !== "" || statusFilter !== "all" || kioskFilter !== "all" || dateFilter !== "all"
+  const hasActiveFilters = searchQuery !== "" || statusFilter !== "all" || dateFilter !== "all"
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" => {
+    if (status === 'COMPLETED') return 'default'
+    if (status === 'PENDING') return 'secondary'
+    return 'destructive'
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-500 mb-4">Error loading transactions: {error}</p>
+        <Button onClick={fetchTransactions}>Retry</Button>
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
@@ -223,20 +218,6 @@ export function TransactionsContent({ onViewTransaction }: TransactionsContentPr
                   </SelectContent>
                 </Select>
 
-                <Select value={kioskFilter} onValueChange={setKioskFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Kiosk" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Kiosks</SelectItem>
-                    {uniqueKiosks.map((kiosk) => (
-                      <SelectItem key={kiosk} value={kiosk}>
-                        {kiosk}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
                 <Select value={dateFilter} onValueChange={setDateFilter}>
                   <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Date Range" />
@@ -260,65 +241,107 @@ export function TransactionsContent({ onViewTransaction }: TransactionsContentPr
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="inline-block min-w-full align-middle">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">Transaction ID</TableHead>
-                    <TableHead className="whitespace-nowrap">Donor</TableHead>
-                    <TableHead className="whitespace-nowrap">Amount</TableHead>
-                    <TableHead className="whitespace-nowrap">Date</TableHead>
-                    <TableHead className="whitespace-nowrap">Kiosk</TableHead>
-                    <TableHead className="whitespace-nowrap">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTransactions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        No transactions found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredTransactions.map((transaction) => (
-                      <TableRow
-                        key={transaction.id}
-                        className="cursor-pointer hover:bg-accent/50"
-                        onClick={() => onViewTransaction(transaction.id)}
-                      >
-                        <TableCell className="font-mono text-xs sm:text-sm whitespace-nowrap">
-                          {transaction.id}
-                        </TableCell>
-                        <TableCell className="font-medium whitespace-nowrap">{transaction.donor}</TableCell>
-                        <TableCell className="font-semibold whitespace-nowrap">
-                          ${transaction.amount.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">{transaction.date}</TableCell>
-                        <TableCell className="whitespace-nowrap">{transaction.kiosk}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              transaction.status === "completed"
-                                ? "default"
-                                : transaction.status === "pending"
-                                  ? "secondary"
-                                  : "destructive"
-                            }
-                          >
-                            {transaction.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
             </div>
-          </div>
-          <div className="mt-4 text-sm text-muted-foreground">
-            Showing {filteredTransactions.length} of {transactions.length} transactions
-          </div>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No transactions found</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">ID</TableHead>
+                        <TableHead className="whitespace-nowrap">Donor</TableHead>
+                        <TableHead className="whitespace-nowrap">Amount</TableHead>
+                        <TableHead className="whitespace-nowrap">Date</TableHead>
+                        <TableHead className="whitespace-nowrap">Status</TableHead>
+                        <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactions.map((transaction) => (
+                        <TableRow key={transaction.id} className="cursor-pointer hover:bg-muted/50">
+                          <TableCell className="font-mono text-xs sm:text-sm whitespace-nowrap">
+                            {transaction.payment_id?.slice(-8) || `#${transaction.id}`}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <div>
+                              <div className="font-medium">
+                                {transaction.donor_name || 'Anonymous'}
+                              </div>
+                              {transaction.donor_email && (
+                                <div className="text-xs text-muted-foreground">
+                                  {transaction.donor_email}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold whitespace-nowrap">
+                            ${transaction.amount.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {formatDate(transaction.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusVariant(transaction.payment_status)}>
+                              {transaction.payment_status.toLowerCase()}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onViewTransaction(transaction.payment_id || transaction.id.toString())
+                              }}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Page {page} of {totalPages} ({totalCount} total)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
