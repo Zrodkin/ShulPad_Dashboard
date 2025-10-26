@@ -15,8 +15,12 @@ import {
   HelpCircle,
   Search,
   X,
+  LogOut,
+  User,
 } from "lucide-react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
 
 interface SidebarProps {
   activeView: NavigationItem
@@ -38,6 +42,43 @@ const navigationItems = [
 ]
 
 export function Sidebar({ activeView, onNavigate, isMobileOpen, onMobileClose }: SidebarProps) {
+  const router = useRouter()
+  const [userEmail, setUserEmail] = useState<string>("")
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+
+  useEffect(() => {
+    // Fetch user session info
+    fetch('/api/dashboard/auth/session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated && data.email) {
+          setUserEmail(data.email)
+        } else if (data.authenticated && data.merchant_name) {
+          setUserEmail(data.merchant_name)
+        }
+      })
+      .catch(err => console.error('Failed to fetch session:', err))
+  }, [])
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      const response = await fetch('/api/dashboard/auth/logout', {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        router.push('/dashboard/login')
+      } else {
+        console.error('Logout failed')
+        setIsLoggingOut(false)
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      setIsLoggingOut(false)
+    }
+  }
+
   return (
     <>
       {isMobileOpen && (
@@ -103,6 +144,24 @@ export function Sidebar({ activeView, onNavigate, isMobileOpen, onMobileClose }:
             )
           })}
         </nav>
+
+        <div className="p-4 border-t border-border">
+          {userEmail && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 bg-accent/50 rounded-lg">
+              <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm text-foreground truncate">{userEmail}</span>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut className="h-5 w-5" />
+            {isLoggingOut ? "Logging out..." : "Logout"}
+          </Button>
+        </div>
       </aside>
     </>
   )
