@@ -76,12 +76,12 @@ export async function GET(request: NextRequest) {
     let previousStats = { total_amount: 0, total_donations: 0 }
     if (comparisonFilter) {
       const comparisonResult = await db.execute(
-        `SELECT 
-          COUNT(id) as total_donations,
-          COALESCE(SUM(amount), 0) as total_amount
-        FROM donations
-        WHERE organization_id = ?
-          AND payment_status = 'COMPLETED'
+        `SELECT
+          COUNT(d.id) as total_donations,
+          COALESCE(SUM(d.amount), 0) as total_amount
+        FROM donations d
+        WHERE d.organization_id = ?
+          AND d.payment_status = 'COMPLETED'
           ${comparisonFilter}`,
         [organization_id]
       )
