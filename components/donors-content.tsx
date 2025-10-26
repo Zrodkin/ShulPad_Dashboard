@@ -1,114 +1,103 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, X } from "lucide-react"
+import { Search, Loader2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 
-const donors = [
-  {
-    name: "Sarah Johnson",
-    email: "sarah.j@email.com",
-    totalGiven: 2450,
-    donations: 12,
-    lastDonation: "2024-01-15",
-  },
-  {
-    name: "Michael Chen",
-    email: "m.chen@email.com",
-    totalGiven: 1890,
-    donations: 8,
-    lastDonation: "2024-01-15",
-  },
-  {
-    name: "Emily Rodriguez",
-    email: "emily.r@email.com",
-    totalGiven: 1650,
-    donations: 15,
-    lastDonation: "2024-01-14",
-  },
-  {
-    name: "David Kim",
-    email: "d.kim@email.com",
-    totalGiven: 1420,
-    donations: 6,
-    lastDonation: "2024-01-14",
-  },
-  {
-    name: "Lisa Anderson",
-    email: "lisa.a@email.com",
-    totalGiven: 1280,
-    donations: 9,
-    lastDonation: "2024-01-13",
-  },
-  {
-    name: "Robert Taylor",
-    email: "r.taylor@email.com",
-    totalGiven: 980,
-    donations: 5,
-    lastDonation: "2024-01-11",
-  },
-  {
-    name: "Jennifer White",
-    email: "j.white@email.com",
-    totalGiven: 750,
-    donations: 3,
-    lastDonation: "2024-01-10",
-  },
-]
+interface Donor {
+  donor_email: string | null
+  donor_name: string
+  is_anonymous: boolean
+  donation_count: number
+  total_donated: string
+  average_donation: string
+  first_donation: string
+  last_donation: string
+  receipts_sent: number
+  recurring_donations: number
+}
 
 interface DonorsContentProps {
   onViewDonor: (donorEmail: string) => void
 }
 
 export function DonorsContent({ onViewDonor }: DonorsContentProps) {
+  const [donors, setDonors] = useState<Donor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState<string>("totalGiven")
+  const [sortBy, setSortBy] = useState<string>("total_donated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
 
-  const filteredAndSortedDonors = useMemo(() => {
-    let result = [...donors]
+  useEffect(() => {
+    fetchDonors()
+  }, [page, sortBy, sortOrder, searchQuery])
 
-    // Search filter
-    if (searchQuery !== "") {
-      result = result.filter(
-        (donor) =>
-          donor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          donor.email.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    }
+  const fetchDonors = async () => {
+    try {
+      setLoading(true)
+      setError(null)
 
-    // Sort
-    result.sort((a, b) => {
-      let comparison = 0
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '50',
+        sort_by: sortBy,
+        sort_order: sortOrder.toUpperCase(),
+      })
 
-      if (sortBy === "totalGiven") {
-        comparison = a.totalGiven - b.totalGiven
-      } else if (sortBy === "donations") {
-        comparison = a.donations - b.donations
-      } else if (sortBy === "name") {
-        comparison = a.name.localeCompare(b.name)
-      } else if (sortBy === "lastDonation") {
-        comparison = new Date(a.lastDonation).getTime() - new Date(b.lastDonation).getTime()
+      if (searchQuery) {
+        params.append('search', searchQuery)
       }
 
-      return sortOrder === "asc" ? comparison : -comparison
-    })
+      const response = await fetch(`/api/dashboard/donors?${params.toString()}`)
 
-    return result
-  }, [searchQuery, sortBy, sortOrder])
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = '/dashboard/login'
+          return
+        }
+        throw new Error('Failed to fetch donors')
+      }
 
-  const handleClearFilters = () => {
-    setSearchQuery("")
-    setSortBy("totalGiven")
-    setSortOrder("desc")
+      const data = await response.json()
+      setDonors(data.donors)
+      setTotalPages(data.pagination.total_pages)
+      setTotalCount(data.pagination.total_count)
+    } catch (err: any) {
+      console.error('Error fetching donors:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const hasActiveFilters = searchQuery !== "" || sortBy !== "totalGiven" || sortOrder !== "desc"
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-500 mb-4">Error loading donors: {error}</p>
+        <Button onClick={fetchDonors}>Retry</Button>
+      </div>
+    )
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
@@ -117,10 +106,6 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">Donors</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">Manage your donor relationships and history</p>
         </div>
-        <Button className="gap-2 w-full sm:w-auto" size="sm">
-          <UserPlus className="h-4 w-4" />
-          Add Donor
-        </Button>
       </div>
 
       <Card>
@@ -144,10 +129,10 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="totalGiven">Total Given</SelectItem>
-                    <SelectItem value="donations">Number of Donations</SelectItem>
-                    <SelectItem value="name">Name</SelectItem>
-                    <SelectItem value="lastDonation">Last Donation</SelectItem>
+                    <SelectItem value="total_donated">Total Given</SelectItem>
+                    <SelectItem value="donation_count">Number of Donations</SelectItem>
+                    <SelectItem value="donor_name">Name</SelectItem>
+                    <SelectItem value="last_donation">Last Donation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -168,72 +153,118 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
                   Low to High
                 </Button>
               </div>
-
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={handleClearFilters} className="gap-2">
-                  <X className="h-4 w-4" />
-                  Clear
-                </Button>
-              )}
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="inline-block min-w-full align-middle">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">Donor</TableHead>
-                    <TableHead className="whitespace-nowrap">Email</TableHead>
-                    <TableHead className="whitespace-nowrap">Total Given</TableHead>
-                    <TableHead className="whitespace-nowrap">Donations</TableHead>
-                    <TableHead className="whitespace-nowrap">Last Donation</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAndSortedDonors.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                        No donors found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredAndSortedDonors.map((donor) => (
-                      <TableRow
-                        key={donor.email}
-                        className="cursor-pointer hover:bg-accent/50"
-                        onClick={() => onViewDonor(donor.email)}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                {donor.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium whitespace-nowrap">{donor.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">{donor.email}</TableCell>
-                        <TableCell className="font-semibold whitespace-nowrap">
-                          ${donor.totalGiven.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">{donor.donations}</TableCell>
-                        <TableCell className="text-muted-foreground whitespace-nowrap">{donor.lastDonation}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+          {loading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
             </div>
-          </div>
-          <div className="mt-4 text-sm text-muted-foreground">
-            Showing {filteredAndSortedDonors.length} of {donors.length} donors
-          </div>
+          ) : donors.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No donors found</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="whitespace-nowrap">Donor</TableHead>
+                        <TableHead className="whitespace-nowrap">Email</TableHead>
+                        <TableHead className="whitespace-nowrap">Total Given</TableHead>
+                        <TableHead className="whitespace-nowrap">Donations</TableHead>
+                        <TableHead className="whitespace-nowrap">Last Donation</TableHead>
+                        <TableHead className="whitespace-nowrap text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {donors.map((donor, idx) => (
+                        <TableRow
+                          key={donor.donor_email || `anon-${idx}`}
+                          className="cursor-pointer hover:bg-muted/50"
+                        >
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                  {donor.donor_name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium whitespace-nowrap">{donor.donor_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {donor.donor_email || 'Anonymous'}
+                          </TableCell>
+                          <TableCell className="font-semibold whitespace-nowrap">
+                            ${parseFloat(donor.total_donated).toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{donor.donation_count}</TableCell>
+                          <TableCell className="text-muted-foreground whitespace-nowrap">
+                            {formatDate(donor.last_donation)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (donor.donor_email) {
+                                  onViewDonor(donor.donor_email)
+                                }
+                              }}
+                              disabled={!donor.donor_email}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Page {page} of {totalPages} ({totalCount} total)
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

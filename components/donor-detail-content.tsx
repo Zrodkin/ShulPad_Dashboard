@@ -1,56 +1,37 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, DollarSign, TrendingUp } from "lucide-react"
+import { ArrowLeft, Mail, Calendar, DollarSign, TrendingUp, Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
 
-// Mock data - in real app this would come from API/database
-const getDonorByEmail = (email: string) => {
-  const donors = [
-    {
-      name: "Sarah Johnson",
-      email: "sarah.j@email.com",
-      phone: "(555) 123-4567",
-      address: "123 Oak Street, Springfield, IL 62701",
-      totalGiven: 2450,
-      donations: 12,
-      firstDonation: "2023-06-15",
-      lastDonation: "2024-01-15",
-      averageDonation: 204.17,
-      donationHistory: [
-        { id: "TXN-007", date: "2024-01-12", amount: 200.0, kiosk: "Main Lobby", status: "completed" },
-        { id: "TXN-001", date: "2024-01-15", amount: 50.0, kiosk: "Main Lobby", status: "completed" },
-        { id: "TXN-015", date: "2023-12-20", amount: 150.0, kiosk: "East Wing", status: "completed" },
-        { id: "TXN-023", date: "2023-11-18", amount: 100.0, kiosk: "Main Lobby", status: "completed" },
-        { id: "TXN-031", date: "2023-10-10", amount: 75.0, kiosk: "West Wing", status: "completed" },
-      ],
-      preferredKiosk: "Main Lobby",
-      tags: ["Monthly Donor", "Major Donor"],
-    },
-    {
-      name: "Michael Chen",
-      email: "m.chen@email.com",
-      phone: "(555) 234-5678",
-      address: "456 Maple Ave, Springfield, IL 62702",
-      totalGiven: 1890,
-      donations: 8,
-      firstDonation: "2023-08-01",
-      lastDonation: "2024-01-15",
-      averageDonation: 236.25,
-      donationHistory: [
-        { id: "TXN-002", date: "2024-01-15", amount: 100.0, kiosk: "East Wing", status: "completed" },
-        { id: "TXN-012", date: "2023-12-28", amount: 250.0, kiosk: "East Wing", status: "completed" },
-        { id: "TXN-019", date: "2023-11-30", amount: 200.0, kiosk: "Main Lobby", status: "completed" },
-      ],
-      preferredKiosk: "East Wing",
-      tags: ["Corporate Donor"],
-    },
-  ]
+interface DonationHistory {
+  id: number
+  amount: number
+  currency: string
+  payment_id: string | null
+  square_order_id: string | null
+  is_recurring: boolean
+  is_custom_amount: boolean
+  donation_type: string | null
+  receipt_sent: boolean
+  created_at: string
+}
 
-  return donors.find((d) => d.email === email) || donors[0]
+interface Donor {
+  email: string
+  name: string
+  donation_count: number
+  total_donated: string
+  average_donation: string
+  first_donation: string
+  last_donation: string
+  receipts_sent: number
+  recurring_donations: number
 }
 
 interface DonorDetailContentProps {
@@ -59,7 +40,74 @@ interface DonorDetailContentProps {
 }
 
 export function DonorDetailContent({ donorEmail, onBack }: DonorDetailContentProps) {
-  const donor = getDonorByEmail(donorEmail)
+  const [donor, setDonor] = useState<Donor | null>(null)
+  const [donationHistory, setDonationHistory] = useState<DonationHistory[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchDonorDetails()
+  }, [donorEmail])
+
+  const fetchDonorDetails = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/dashboard/donors/${encodeURIComponent(donorEmail)}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch donor details')
+      }
+
+      const data = await response.json()
+      setDonor(data.donor)
+      setDonationHistory(data.donation_history)
+    } catch (err: any) {
+      console.error('Error fetching donor:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    )
+  }
+
+  if (error || !donor) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 mb-4">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-red-500">Error loading donor: {error || 'Donor not found'}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const initials = donor.name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2)
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
@@ -77,122 +125,71 @@ export function DonorDetailContent({ donorEmail, onBack }: DonorDetailContentPro
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Avatar className="h-16 w-16">
               <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                {donor.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
+                {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <h2 className="text-2xl font-semibold text-foreground">{donor.name}</h2>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {donor.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">
-                    {tag}
-                  </Badge>
-                ))}
+              <div className="flex items-center gap-2 mt-1 text-muted-foreground">
+                <Mail className="h-4 w-4" />
+                <span>{donor.email}</span>
               </div>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {donor.recurring_donations > 0 && (
+                <Badge variant="secondary">Recurring Donor</Badge>
+              )}
+              {parseFloat(donor.total_donated) >= 1000 && (
+                <Badge variant="default">Major Donor</Badge>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
-        {/* Total Given */}
+      {/* Statistics Grid */}
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Given</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Given</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">${donor.totalGiven.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-foreground">${donor.total_donated}</div>
             <p className="text-xs text-muted-foreground mt-1">Lifetime contributions</p>
           </CardContent>
         </Card>
 
-        {/* Number of Donations */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Donations</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Donations</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{donor.donations}</div>
+            <div className="text-2xl font-bold text-foreground">{donor.donation_count}</div>
             <p className="text-xs text-muted-foreground mt-1">Total transactions</p>
           </CardContent>
         </Card>
 
-        {/* Average Donation */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Donation</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Average</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${donor.averageDonation.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Per transaction</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        {/* Contact Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{donor.email}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-medium">{donor.phone}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Address</p>
-                <p className="font-medium">{donor.address}</p>
-              </div>
-            </div>
+            <div className="text-2xl font-bold text-foreground">${donor.average_donation}</div>
+            <p className="text-xs text-muted-foreground mt-1">Per donation</p>
           </CardContent>
         </Card>
 
-        {/* Donation Summary */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Donation Summary</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">First Donation</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">First Donation</p>
-                <p className="font-medium">{donor.firstDonation}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Last Donation</p>
-                <p className="font-medium">{donor.lastDonation}</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Preferred Kiosk</p>
-                <p className="font-medium">{donor.preferredKiosk}</p>
-              </div>
-            </div>
+          <CardContent>
+            <div className="text-lg font-bold text-foreground">{formatDate(donor.first_donation)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Member since</p>
           </CardContent>
         </Card>
       </div>
@@ -200,36 +197,54 @@ export function DonorDetailContent({ donorEmail, onBack }: DonorDetailContentPro
       {/* Donation History */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Donation History</CardTitle>
+          <CardTitle>Donation History</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="inline-block min-w-full align-middle">
-              <Table>
-                <TableHeader>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="text-center">Receipt</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {donationHistory.length === 0 ? (
                   <TableRow>
-                    <TableHead className="whitespace-nowrap">Transaction ID</TableHead>
-                    <TableHead className="whitespace-nowrap">Date</TableHead>
-                    <TableHead className="whitespace-nowrap">Amount</TableHead>
-                    <TableHead className="whitespace-nowrap">Kiosk</TableHead>
-                    <TableHead className="whitespace-nowrap">Status</TableHead>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                      No donation history found
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {donor.donationHistory.map((donation) => (
+                ) : (
+                  donationHistory.map((donation) => (
                     <TableRow key={donation.id}>
-                      <TableCell className="font-mono text-xs sm:text-sm whitespace-nowrap">{donation.id}</TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{donation.date}</TableCell>
-                      <TableCell className="font-semibold whitespace-nowrap">${donation.amount.toFixed(2)}</TableCell>
-                      <TableCell className="whitespace-nowrap">{donation.kiosk}</TableCell>
+                      <TableCell>{formatDate(donation.created_at)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        ${donation.amount.toFixed(2)}
+                      </TableCell>
                       <TableCell>
-                        <Badge variant="default">{donation.status}</Badge>
+                        {donation.is_recurring ? (
+                          <Badge variant="secondary">Recurring</Badge>
+                        ) : donation.is_custom_amount ? (
+                          <Badge variant="outline">Custom</Badge>
+                        ) : (
+                          <Badge variant="outline">One-time</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {donation.receipt_sent ? (
+                          <Badge variant="default">Sent</Badge>
+                        ) : (
+                          <Badge variant="secondary">Not Sent</Badge>
+                        )}
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

@@ -40,29 +40,21 @@ export default function DashboardLoginPage() {
     }
   }
 
-  const handleLogin = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+const handleLogin = async () => {
+  try {
+    setLoading(true)
+    setError(null)
 
-      // Get OAuth URL from backend
-      const response = await fetch('/api/dashboard/auth/login')
-      
-      if (!response.ok) {
-        throw new Error('Failed to initiate login')
-      }
+    // Simply redirect to the login endpoint
+    // The API route will redirect to Square
+    window.location.href = '/api/dashboard/auth/login'
 
-      const data = await response.json()
-      
-      // Redirect to Square OAuth
-      window.location.href = data.authorization_url
-
-    } catch (err: any) {
-      console.error('Login error:', err)
-      setError(err.message || 'Failed to initiate login. Please try again.')
-      setLoading(false)
-    }
+  } catch (err: any) {
+    console.error('Login error:', err)
+    setError(err.message || 'Failed to initiate login. Please try again.')
+    setLoading(false)
   }
+}
 
   if (checkingSession) {
     return (

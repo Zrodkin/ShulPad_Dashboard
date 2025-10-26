@@ -1,82 +1,119 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Download, Mail, MapPin, CreditCard, Calendar, User } from "lucide-react"
+import { ArrowLeft, Download, Mail, MapPin, CreditCard, Calendar, User, Loader2 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
 
-// Mock data - in real app this would come from API/database
-const getTransactionById = (id: string) => {
-  const transactions = [
-    {
-      id: "TXN-001",
-      donor: "Sarah Johnson",
-      donorId: "DNR-001",
-      donorEmail: "sarah.j@email.com",
-      amount: 50.0,
-      date: "2024-01-15",
-      time: "10:32 AM",
-      kiosk: "Main Lobby",
-      kioskLocation: "123 Main Street, Building A",
-      status: "completed",
-      paymentMethod: "Credit Card",
-      cardLast4: "4242",
-      receiptNumber: "RCP-001-2024",
-      campaign: "General Fund",
-      notes: "Monthly recurring donation",
-    },
-    {
-      id: "TXN-002",
-      donor: "Michael Chen",
-      donorId: "DNR-002",
-      donorEmail: "m.chen@email.com",
-      amount: 100.0,
-      date: "2024-01-15",
-      time: "2:15 PM",
-      kiosk: "East Wing",
-      kioskLocation: "456 East Ave, Floor 2",
-      status: "completed",
-      paymentMethod: "Debit Card",
-      cardLast4: "5555",
-      receiptNumber: "RCP-002-2024",
-      campaign: "Building Fund",
-      notes: "",
-    },
-    {
-      id: "TXN-003",
-      donor: "Emily Rodriguez",
-      donorId: "DNR-003",
-      donorEmail: "emily.r@email.com",
-      amount: 25.0,
-      date: "2024-01-14",
-      time: "9:45 AM",
-      kiosk: "Main Lobby",
-      kioskLocation: "123 Main Street, Building A",
-      status: "completed",
-      paymentMethod: "Cash",
-      cardLast4: "",
-      receiptNumber: "RCP-003-2024",
-      campaign: "General Fund",
-      notes: "",
-    },
-  ]
-
-  return transactions.find((t) => t.id === id) || transactions[0]
+interface Transaction {
+  id: number
+  amount: number
+  currency: string
+  donor_name: string | null
+  donor_email: string | null
+  payment_id: string | null
+  square_order_id: string | null
+  payment_status: string
+  receipt_sent: boolean
+  is_recurring: boolean
+  created_at: string
+  updated_at: string
 }
 
 interface TransactionDetailContentProps {
   transactionId: string
   onBack: () => void
-  onNavigateToDonor: (donorId: string) => void
+  onNavigateToDonor: (donorEmail: string) => void
 }
 
 export function TransactionDetailContent({ transactionId, onBack, onNavigateToDonor }: TransactionDetailContentProps) {
-  const transaction = getTransactionById(transactionId)
+  const [transaction, setTransaction] = useState<Transaction | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleDownloadReceipt = () => {
-    // In real app, this would generate/download actual receipt
-    alert(`Downloading receipt ${transaction.receiptNumber}`)
+  useEffect(() => {
+    fetchTransaction()
+  }, [transactionId])
+
+  const fetchTransaction = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/dashboard/donations/${transactionId}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch transaction')
+      }
+
+      const data = await response.json()
+      setTransaction(data.donation)
+    } catch (err: any) {
+      console.error('Error fetching transaction:', err)
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDownloadReceipt = async () => {
+    if (!transaction?.payment_id) return
+    
+    try {
+      const response = await fetch(`/api/dashboard/receipts/${transaction.id}`)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `receipt-${transaction.payment_id}.pdf`
+      a.click()
+    } catch (err) {
+      console.error('Failed to download receipt:', err)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    )
+  }
+
+  if (error || !transaction) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 mb-4">
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-red-500">Error loading transaction: {error || 'Transaction not found'}</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -89,137 +126,139 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
           </Button>
           <div>
             <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">Transaction Details</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">{transaction.id}</p>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
+              {transaction.payment_id || `Transaction #${transaction.id}`}
+            </p>
           </div>
         </div>
-        <Button onClick={handleDownloadReceipt} className="gap-2 w-full sm:w-auto" size="sm">
-          <Download className="h-4 w-4" />
-          Download Receipt
-        </Button>
+        {transaction.receipt_sent && (
+          <Button onClick={handleDownloadReceipt} className="gap-2 w-full sm:w-auto" size="sm">
+            <Download className="h-4 w-4" />
+            Download Receipt
+          </Button>
+        )}
       </div>
 
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        {/* Transaction Overview */}
-        <Card>
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-3">
+        {/* Amount Card */}
+        <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-lg">Transaction Overview</CardTitle>
+            <CardTitle>Transaction Amount</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="text-2xl font-bold text-primary">${transaction.amount.toFixed(2)}</span>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Status</span>
-              <Badge
-                variant={
-                  transaction.status === "completed"
-                    ? "default"
-                    : transaction.status === "pending"
-                      ? "secondary"
-                      : "destructive"
-                }
-              >
-                {transaction.status}
+              <div>
+                <p className="text-4xl font-bold text-foreground">
+                  ${transaction.amount.toFixed(2)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">{transaction.currency}</p>
+              </div>
+              <Badge variant={transaction.payment_status === 'COMPLETED' ? 'default' : 'secondary'}>
+                {transaction.payment_status}
               </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Receipt Number</span>
-              <span className="font-mono text-sm">{transaction.receiptNumber}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Campaign</span>
-              <span className="font-medium">{transaction.campaign}</span>
             </div>
           </CardContent>
         </Card>
 
         {/* Donor Information */}
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg">Donor Information</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Donor Information
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
                 <p className="text-sm text-muted-foreground">Name</p>
-                <button
-                  onClick={() => onNavigateToDonor(transaction.donorId)}
-                  className="font-medium text-primary hover:underline focus:outline-none focus:underline text-left"
-                >
-                  {transaction.donor}
-                </button>
+                <p className="text-base font-medium text-foreground">
+                  {transaction.donor_name || 'Anonymous'}
+                </p>
               </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
+              <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{transaction.donorEmail || "Not provided"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Payment Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Payment Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Payment Method</p>
-                <p className="font-medium">{transaction.paymentMethod}</p>
-                {transaction.cardLast4 && (
-                  <p className="text-sm text-muted-foreground mt-1">Card ending in {transaction.cardLast4}</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Date & Time</p>
-                <p className="font-medium">
-                  {transaction.date} at {transaction.time}
+                <p className="text-base font-medium text-foreground">
+                  {transaction.donor_email || 'Not provided'}
                 </p>
               </div>
             </div>
+            {transaction.donor_email && (
+              <>
+                <Separator />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onNavigateToDonor(transaction.donor_email!)}
+                  className="w-full"
+                >
+                  View Donor Profile
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* Kiosk Information */}
+        {/* Transaction Details */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Kiosk Information</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Details
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Location</p>
-                <p className="font-medium">{transaction.kiosk}</p>
-                <p className="text-sm text-muted-foreground mt-1">{transaction.kioskLocation}</p>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Date</p>
+              <p className="text-base font-medium text-foreground">{formatDate(transaction.created_at)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Time</p>
+              <p className="text-base font-medium text-foreground">{formatTime(transaction.created_at)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Receipt Sent</p>
+              <Badge variant={transaction.receipt_sent ? 'default' : 'secondary'}>
+                {transaction.receipt_sent ? 'Yes' : 'No'}
+              </Badge>
+            </div>
+            {transaction.is_recurring && (
+              <div>
+                <p className="text-sm text-muted-foreground">Type</p>
+                <Badge variant="outline">Recurring</Badge>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment Information */}
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Payment Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Payment ID</p>
+              <p className="text-sm font-mono text-foreground break-all">
+                {transaction.payment_id || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Order ID</p>
+              <p className="text-sm font-mono text-foreground break-all">
+                {transaction.square_order_id || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Transaction ID</p>
+              <p className="text-sm font-mono text-foreground">#{transaction.id}</p>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Notes */}
-      {transaction.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">{transaction.notes}</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }
