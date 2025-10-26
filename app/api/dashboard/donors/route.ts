@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
         AND d.payment_status = 'COMPLETED'
         ${dateFilter}
         ${searchFilter}
-      GROUP BY donor_identifier, d.donor_email, d.donor_name
+      GROUP BY d.donor_email, d.donor_name
       ${havingClause}
       ORDER BY ${safeSortBy} ${safeSortOrder}
       LIMIT ? OFFSET ?`,
