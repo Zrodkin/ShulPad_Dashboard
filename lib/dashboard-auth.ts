@@ -1,5 +1,6 @@
 // src/lib/dashboard-auth.ts
 // Authentication utilities for merchant dashboard
+// MODIFIED: Added functions to fetch ALL organizations for a merchant
 
 import { cookies } from 'next/headers'
 import { SignJWT, jwtVerify } from 'jose'
@@ -165,6 +166,81 @@ export async function getCurrentOrganizationId(): Promise<string | null> {
   // If impersonating, use the impersonated org ID
   return session.impersonating || session.organization_id
 }
+
+// ============= NEW FUNCTIONS FOR MULTI-ORGANIZATION SUPPORT =============
+
+/**
+ * Get current merchant ID from session
+ */
+export async function getCurrentMerchantId(): Promise<string | null> {
+  const session = await getSession()
+  return session?.merchant_id || null
+}
+
+/**
+ * Get ALL organization IDs for the current merchant
+ * This is the key function for fetching data across all merchant organizations
+ */
+export async function getMerchantOrganizationIds(): Promise<string[]> {
+  const session = await getSession()
+  
+  if (!session?.merchant_id) {
+    return []
+  }
+
+  const db = createClient()
+  
+  try {
+    // Get all organization IDs associated with this merchant
+    const result = await db.execute(
+      `SELECT DISTINCT o.id 
+       FROM organizations o
+       WHERE o.square_merchant_id = ?
+       AND o.active = 1
+       ORDER BY o.created_at ASC`,
+      [session.merchant_id]
+    )
+    
+    return result.rows.map((row: any) => row.id)
+  } catch (error) {
+    console.error('Error fetching merchant organizations:', error)
+    return []
+  }
+}
+
+/**
+ * Get ALL organizations with details for the current merchant
+ */
+export async function getMerchantOrganizations(): Promise<Array<{id: string, name: string}>> {
+  const session = await getSession()
+  
+  if (!session?.merchant_id) {
+    return []
+  }
+
+  const db = createClient()
+  
+  try {
+    const result = await db.execute(
+      `SELECT o.id, o.name, o.created_at
+       FROM organizations o
+       WHERE o.square_merchant_id = ?
+       AND o.active = 1
+       ORDER BY o.created_at ASC`,
+      [session.merchant_id]
+    )
+    
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      name: row.name || `Organization ${row.id}`
+    }))
+  } catch (error) {
+    console.error('Error fetching merchant organizations with details:', error)
+    return []
+  }
+}
+
+// ============= END NEW FUNCTIONS =============
 
 /**
  * List all organizations (super admin only)

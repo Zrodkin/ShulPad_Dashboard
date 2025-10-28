@@ -1,17 +1,21 @@
 // app/api/dashboard/donors/route.ts
-// Get list of donors with their donation totals and statistics
+// Modified to fetch donors across ALL organizations for a merchant
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { requireAuth, getMerchantOrganizationIds } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    
+    // Get ALL organization IDs for this merchant
+    const organizationIds = await getMerchantOrganizationIds()
 
-    if (!organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    if (organizationIds.length === 0) {
+      return NextResponse.json({ 
+        error: 'No organizations found for this merchant' 
+      }, { status: 404 })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -28,12 +32,34 @@ export async function GET(request: NextRequest) {
     const hasEmail = searchParams.get('has_email')
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
+    const organizationFilter = searchParams.get('organization_id') // Optional: filter by specific org
 
     // Sorting
     const sortBy = searchParams.get('sort_by') || 'total_donated'
     const sortOrder = searchParams.get('sort_order') || 'DESC'
 
     const db = createClient()
+
+    // Build organization filter
+    let orgCondition: string
+    let orgParams: any[] = []
+    
+    if (organizationFilter) {
+      // Check if requested org belongs to this merchant
+      if (organizationIds.includes(organizationFilter)) {
+        orgCondition = 'd.organization_id = ?'
+        orgParams = [organizationFilter]
+      } else {
+        return NextResponse.json({ 
+          error: 'Organization not found or access denied' 
+        }, { status: 404 })
+      }
+    } else {
+      // Use all merchant's organizations
+      const placeholders = organizationIds.map(() => '?').join(',')
+      orgCondition = `d.organization_id IN (${placeholders})`
+      orgParams = organizationIds
+    }
 
     // Build WHERE clause for date filtering
     let dateFilter = ''
@@ -47,7 +73,39 @@ export async function GET(request: NextRequest) {
       dateParams.push(endDate)
     }
 
-    // Get aggregated donor data
+    // Build search filter
+    let searchFilter = ''
+    let searchParams_arr: any[] = []
+    if (search) {
+      searchFilter = 'AND (d.donor_name LIKE ? OR d.donor_email LIKE ?)'
+      searchParams_arr = [`%${search}%`, `%${search}%`]
+    }
+
+    if (hasEmail === 'true') {
+      searchFilter += ' AND d.donor_email IS NOT NULL'
+    } else if (hasEmail === 'false') {
+      searchFilter += ' AND d.donor_email IS NULL'
+    }
+
+    // Get total count of unique donors across all organizations
+    const countResult = await db.execute(
+      `SELECT COUNT(DISTINCT 
+         CASE 
+           WHEN d.donor_email IS NOT NULL THEN d.donor_email 
+           ELSE CONCAT('anon_', d.id)
+         END
+       ) as total
+       FROM donations d
+       WHERE ${orgCondition}
+         AND d.payment_status = 'COMPLETED'
+         ${dateFilter}
+         ${searchFilter}`,
+      [...orgParams, ...dateParams, ...searchParams_arr]
+    )
+
+    const totalCount = parseInt(countResult.rows[0].total)
+
+    // Build HAVING clause
     let havingConditions: string[] = []
     let havingParams: any[] = []
 
@@ -65,44 +123,12 @@ export async function GET(request: NextRequest) {
       ? `HAVING ${havingConditions.join(' AND ')}` 
       : ''
 
-    // Build search filter
-    let searchFilter = ''
-    let searchParams_arr: any[] = []
-    if (search) {
-      searchFilter = 'AND (d.donor_name LIKE ? OR d.donor_email LIKE ?)'
-      searchParams_arr = [`%${search}%`, `%${search}%`]
-    }
-
-    if (hasEmail === 'true') {
-      searchFilter += ' AND d.donor_email IS NOT NULL'
-    } else if (hasEmail === 'false') {
-      searchFilter += ' AND d.donor_email IS NULL'
-    }
-
-    // Get total count of unique donors
-    const countResult = await db.execute(
-      `SELECT COUNT(DISTINCT 
-         CASE 
-           WHEN d.donor_email IS NOT NULL THEN d.donor_email 
-           ELSE CONCAT('anon_', d.id)
-         END
-       ) as total
-       FROM donations d
-       WHERE d.organization_id = ? 
-         AND d.payment_status = 'COMPLETED'
-         ${dateFilter}
-         ${searchFilter}`,
-      [organization_id, ...dateParams, ...searchParams_arr]
-    )
-
-    const totalCount = parseInt(countResult.rows[0].total)
-
     // Validate sortBy
-    const validSortColumns = ['total_donated', 'donation_count', 'average_donation', 'first_donation', 'last_donation', 'donor_name']
+    const validSortColumns = ['total_donated', 'donation_count', 'average_donation', 'first_donation', 'last_donation', 'donor_name', 'organizations_donated_to']
     const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'total_donated'
     const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
 
-    // Get aggregated donor data with pagination
+    // Get aggregated donor data across all organizations
     const donorsResult = await db.execute(
       `SELECT 
         COALESCE(d.donor_email, CONCAT('anonymous_', MIN(d.id))) as donor_identifier,
@@ -113,10 +139,12 @@ export async function GET(request: NextRequest) {
         AVG(d.amount) as average_donation,
         MIN(d.created_at) as first_donation,
         MAX(d.created_at) as last_donation,
+        COUNT(DISTINCT d.organization_id) as organizations_donated_to,
+        GROUP_CONCAT(DISTINCT d.organization_id) as organization_ids,
         SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
         SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
       FROM donations d
-      WHERE d.organization_id = ? 
+      WHERE ${orgCondition}
         AND d.payment_status = 'COMPLETED'
         ${dateFilter}
         ${searchFilter}
@@ -124,7 +152,16 @@ export async function GET(request: NextRequest) {
       ${havingClause}
       ORDER BY ${safeSortBy} ${safeSortOrder}
       LIMIT ? OFFSET ?`,
-      [organization_id, ...dateParams, ...searchParams_arr, ...havingParams, limit, offset]
+      [...orgParams, ...dateParams, ...searchParams_arr, ...havingParams, limit, offset]
+    )
+
+    // Get organization names for the results
+    const orgNamesResult = await db.execute(
+      `SELECT id, name FROM organizations WHERE id IN (${organizationIds.map(() => '?').join(',')})`,
+      organizationIds
+    )
+    const orgNamesMap = Object.fromEntries(
+      orgNamesResult.rows.map((row: any) => [row.id, row.name])
     )
 
     const donors = donorsResult.rows.map((row: any) => ({
@@ -136,11 +173,32 @@ export async function GET(request: NextRequest) {
       average_donation: parseFloat(row.average_donation).toFixed(2),
       first_donation: row.first_donation,
       last_donation: row.last_donation,
+      organizations_donated_to: parseInt(row.organizations_donated_to),
+      organization_names: row.organization_ids 
+        ? row.organization_ids.split(',').map((id: string) => orgNamesMap[id]).filter(Boolean)
+        : [],
       receipts_sent: parseInt(row.receipts_sent),
       recurring_donations: parseInt(row.recurring_donations),
     }))
 
     const totalPages = Math.ceil(totalCount / limit)
+
+    // Get summary statistics
+    const statsResult = await db.execute(
+      `SELECT 
+        COUNT(DISTINCT d.donor_email) as unique_donors_with_email,
+        COUNT(DISTINCT CASE WHEN d.donor_email IS NULL THEN d.id END) as anonymous_donors,
+        SUM(d.amount) as total_donated,
+        AVG(d.amount) as average_donation,
+        COUNT(DISTINCT d.organization_id) as organizations_with_donations
+      FROM donations d
+      WHERE ${orgCondition}
+        AND d.payment_status = 'COMPLETED'
+        ${dateFilter}`,
+      [...orgParams, ...dateParams]
+    )
+
+    const stats = statsResult.rows[0]
 
     return NextResponse.json({
       donors,
@@ -152,6 +210,14 @@ export async function GET(request: NextRequest) {
         has_next: page < totalPages,
         has_prev: page > 1,
       },
+      statistics: {
+        unique_donors_with_email: parseInt(stats.unique_donors_with_email || 0),
+        anonymous_donors: parseInt(stats.anonymous_donors || 0),
+        total_donated: parseFloat(stats.total_donated || 0).toFixed(2),
+        average_donation: parseFloat(stats.average_donation || 0).toFixed(2),
+        organizations_with_donations: parseInt(stats.organizations_with_donations || 0),
+        total_organizations: organizationIds.length,
+      },
       filters_applied: {
         search,
         min_total: minTotal,
@@ -159,7 +225,9 @@ export async function GET(request: NextRequest) {
         has_email: hasEmail,
         start_date: startDate,
         end_date: endDate,
+        organization_id: organizationFilter,
       },
+      merchant_organizations: organizationIds, // Show which orgs are included
     })
 
   } catch (error: any) {
