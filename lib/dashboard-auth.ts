@@ -167,6 +167,32 @@ export async function getCurrentOrganizationId(): Promise<string | null> {
 }
 
 /**
+ * Get all organization IDs for the current merchant
+ * A merchant can have multiple organizations
+ */
+export async function getMerchantOrganizationIds(): Promise<string[]> {
+  const session = await getSession()
+  if (!session) return []
+
+  const db = createClient()
+
+  try {
+    // Get all organization IDs associated with this merchant
+    const result = await db.execute(
+      `SELECT o.id
+       FROM organizations o
+       WHERE o.square_merchant_id = ? AND o.active = 1`,
+      [session.merchant_id]
+    )
+
+    return result.rows.map((row: any) => row.id.toString())
+  } catch (error) {
+    console.error('Error fetching merchant organizations:', error)
+    throw error
+  }
+}
+
+/**
  * List all organizations (super admin only)
  */
 export async function listAllOrganizations() {

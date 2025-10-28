@@ -2,15 +2,15 @@
 // Get list of donations with filtering, sorting, and pagination
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getMerchantOrganizationIds, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const organizationIds = await getMerchantOrganizationIds()
 
-    if (!organization_id) {
+    if (organizationIds.length === 0) {
       return NextResponse.json({ error: 'No organization found' }, { status: 404 })
     }
 
@@ -40,8 +40,9 @@ export async function GET(request: NextRequest) {
     const db = createClient()
 
     // Build WHERE clause
-    let whereConditions = ['d.organization_id = ?', "d.payment_status = 'COMPLETED'"]
-    let params: any[] = [organization_id]
+    const orgPlaceholders = organizationIds.map(() => '?').join(', ')
+    let whereConditions = [`d.organization_id IN (${orgPlaceholders})`, "d.payment_status = 'COMPLETED'"]
+    let params: any[] = [...organizationIds]
 
     if (startDate) {
       whereConditions.push('DATE(d.created_at) >= ?')

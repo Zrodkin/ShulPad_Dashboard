@@ -2,15 +2,15 @@
 // Get list of donors with their donation totals and statistics
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getMerchantOrganizationIds, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const organizationIds = await getMerchantOrganizationIds()
 
-    if (!organization_id) {
+    if (organizationIds.length === 0) {
       return NextResponse.json({ error: 'No organization found' }, { status: 404 })
     }
 
@@ -34,6 +34,9 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sort_order') || 'DESC'
 
     const db = createClient()
+
+    // Build WHERE clause for organization IDs
+    const orgPlaceholders = organizationIds.map(() => '?').join(', ')
 
     // Build WHERE clause for date filtering
     let dateFilter = ''
@@ -61,8 +64,8 @@ export async function GET(request: NextRequest) {
       havingParams.push(parseInt(minDonations))
     }
 
-    const havingClause = havingConditions.length > 0 
-      ? `HAVING ${havingConditions.join(' AND ')}` 
+    const havingClause = havingConditions.length > 0
+      ? `HAVING ${havingConditions.join(' AND ')}`
       : ''
 
     // Build search filter
@@ -81,18 +84,18 @@ export async function GET(request: NextRequest) {
 
     // Get total count of unique donors
     const countResult = await db.execute(
-      `SELECT COUNT(DISTINCT 
-         CASE 
-           WHEN d.donor_email IS NOT NULL THEN d.donor_email 
+      `SELECT COUNT(DISTINCT
+         CASE
+           WHEN d.donor_email IS NOT NULL THEN d.donor_email
            ELSE CONCAT('anon_', d.id)
          END
        ) as total
        FROM donations d
-       WHERE d.organization_id = ? 
+       WHERE d.organization_id IN (${orgPlaceholders})
          AND d.payment_status = 'COMPLETED'
          ${dateFilter}
          ${searchFilter}`,
-      [organization_id, ...dateParams, ...searchParams_arr]
+      [...organizationIds, ...dateParams, ...searchParams_arr]
     )
 
     const totalCount = parseInt(countResult.rows[0].total)
@@ -104,7 +107,7 @@ export async function GET(request: NextRequest) {
 
     // Get aggregated donor data with pagination
     const donorsResult = await db.execute(
-      `SELECT 
+      `SELECT
         COALESCE(d.donor_email, CONCAT('anonymous_', MIN(d.id))) as donor_identifier,
         d.donor_email,
         COALESCE(d.donor_name, 'Anonymous Donor') as donor_name,
@@ -116,7 +119,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
         SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
       FROM donations d
-      WHERE d.organization_id = ? 
+      WHERE d.organization_id IN (${orgPlaceholders})
         AND d.payment_status = 'COMPLETED'
         ${dateFilter}
         ${searchFilter}
@@ -124,7 +127,7 @@ export async function GET(request: NextRequest) {
       ${havingClause}
       ORDER BY ${safeSortBy} ${safeSortOrder}
       LIMIT ? OFFSET ?`,
-      [organization_id, ...dateParams, ...searchParams_arr, ...havingParams, limit, offset]
+      [...organizationIds, ...dateParams, ...searchParams_arr, ...havingParams, limit, offset]
     )
 
     const donors = donorsResult.rows.map((row: any) => ({
