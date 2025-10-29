@@ -2,17 +2,17 @@
 // Get dashboard statistics (total donations, donors, averages, etc.)
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getCurrentMerchantId, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     // Require authentication
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const merchant_id = await getCurrentMerchantId()
 
-    if (!organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    if (!merchant_id) {
+      return NextResponse.json({ error: 'No merchant found' }, { status: 404 })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -39,9 +39,9 @@ export async function GET(request: NextRequest) {
         dateFilter = ''
     }
 
-    // Get overall statistics
+    // Get overall statistics across all merchant organizations
     const statsResult = await db.execute(
-      `SELECT 
+      `SELECT
         COUNT(DISTINCT d.id) as total_donations,
         COUNT(DISTINCT d.donor_email) as unique_donors,
         COALESCE(SUM(d.amount), 0) as total_amount,
@@ -49,10 +49,11 @@ export async function GET(request: NextRequest) {
         COUNT(DISTINCT CASE WHEN d.is_recurring = 1 THEN d.id END) as recurring_donations,
         COUNT(DISTINCT CASE WHEN d.receipt_sent = 1 THEN d.id END) as receipts_sent
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
         ${dateFilter}`,
-      [organization_id]
+      [merchant_id]
     )
 
     const stats = statsResult.rows[0]
@@ -80,10 +81,11 @@ export async function GET(request: NextRequest) {
           COUNT(d.id) as total_donations,
           COALESCE(SUM(d.amount), 0) as total_amount
         FROM donations d
-        WHERE d.organization_id = ?
+        JOIN square_connections sc ON d.organization_id = sc.organization_id
+        WHERE sc.merchant_id = ?
           AND d.payment_status = 'COMPLETED'
           ${comparisonFilter}`,
-        [organization_id]
+        [merchant_id]
       )
       previousStats = comparisonResult.rows[0]
     }
@@ -97,27 +99,28 @@ export async function GET(request: NextRequest) {
       ? ((stats.total_donations - previousStats.total_donations) / previousStats.total_donations * 100).toFixed(1)
       : 0
 
-    // Get active kiosks count (organizations with recent donations)
+    // Get active kiosks count across all merchant organizations
     const kiosksResult = await db.execute(
       `SELECT COUNT(DISTINCT location_id) as active_kiosks
        FROM square_connections
-       WHERE organization_id = ?`,
-      [organization_id]
+       WHERE merchant_id = ?`,
+      [merchant_id]
     )
 
-    // Get recent donations trend (last 30 days, grouped by day)
+    // Get recent donations trend (last 30 days, grouped by day) across all merchant organizations
     const trendResult = await db.execute(
-      `SELECT 
-        DATE(created_at) as date,
-        COUNT(id) as count,
-        COALESCE(SUM(amount), 0) as total
-      FROM donations
-      WHERE organization_id = ?
-        AND payment_status = 'COMPLETED'
-        AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-      GROUP BY DATE(created_at)
+      `SELECT
+        DATE(d.created_at) as date,
+        COUNT(d.id) as count,
+        COALESCE(SUM(d.amount), 0) as total
+      FROM donations d
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
+        AND d.payment_status = 'COMPLETED'
+        AND d.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      GROUP BY DATE(d.created_at)
       ORDER BY date ASC`,
-      [organization_id]
+      [merchant_id]
     )
 
     return NextResponse.json({

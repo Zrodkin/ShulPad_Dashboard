@@ -2,7 +2,7 @@
 // Get individual donor details and donation history by email
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getCurrentMerchantId, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(
@@ -11,18 +11,18 @@ export async function GET(
 ) {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const merchant_id = await getCurrentMerchantId()
 
-    if (!organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    if (!merchant_id) {
+      return NextResponse.json({ error: 'No merchant found' }, { status: 404 })
     }
 
     const donorEmail = decodeURIComponent(params.email)
     const db = createClient()
 
-    // Get donor summary statistics
+    // Get donor summary statistics across all merchant organizations
     const statsResult = await db.execute(
-      `SELECT 
+      `SELECT
         d.donor_email,
         COALESCE(d.donor_name, 'Anonymous Donor') as donor_name,
         COUNT(d.id) as donation_count,
@@ -33,11 +33,12 @@ export async function GET(
         SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
         SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.donor_email = ?
         AND d.payment_status = 'COMPLETED'
       GROUP BY d.donor_email, d.donor_name`,
-      [organization_id, donorEmail]
+      [merchant_id, donorEmail]
     )
 
     if (statsResult.rows.length === 0) {
@@ -46,9 +47,9 @@ export async function GET(
 
     const donorStats = statsResult.rows[0]
 
-    // Get donation history
+    // Get donation history across all merchant organizations
     const historyResult = await db.execute(
-      `SELECT 
+      `SELECT
         d.id,
         d.amount,
         d.currency,
@@ -60,12 +61,13 @@ export async function GET(
         d.receipt_sent,
         d.created_at
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.donor_email = ?
         AND d.payment_status = 'COMPLETED'
       ORDER BY d.created_at DESC
       LIMIT 50`,
-      [organization_id, donorEmail]
+      [merchant_id, donorEmail]
     )
 
     const donationHistory = historyResult.rows.map((row: any) => ({

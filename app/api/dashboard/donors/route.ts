@@ -1,20 +1,20 @@
 // app/api/dashboard/donors/route.ts
-// Modified to fetch donors across ALL organizations for a merchant
+// Modified to fetch donors across ALL organizations for a merchant using JOIN pattern
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getMerchantOrganizationIds } from '@/lib/dashboard-auth'
+import { requireAuth, getCurrentMerchantId } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
-    
-    // Get ALL organization IDs for this merchant
-    const organizationIds = await getMerchantOrganizationIds()
 
-    if (organizationIds.length === 0) {
-      return NextResponse.json({ 
-        error: 'No organizations found for this merchant' 
+    // Get merchant ID from session
+    const merchant_id = await getCurrentMerchantId()
+
+    if (!merchant_id) {
+      return NextResponse.json({
+        error: 'No merchant found'
       }, { status: 404 })
     }
 
@@ -40,25 +40,14 @@ export async function GET(request: NextRequest) {
 
     const db = createClient()
 
-    // Build organization filter
-    let orgCondition: string
-    let orgParams: any[] = []
-    
+    // Build organization filter using JOIN with square_connections
+    let orgCondition: string = 'sc.merchant_id = ?'
+    let orgParams: any[] = [merchant_id]
+
     if (organizationFilter) {
-      // Check if requested org belongs to this merchant
-      if (organizationIds.includes(organizationFilter)) {
-        orgCondition = 'd.organization_id = ?'
-        orgParams = [organizationFilter]
-      } else {
-        return NextResponse.json({ 
-          error: 'Organization not found or access denied' 
-        }, { status: 404 })
-      }
-    } else {
-      // Use all merchant's organizations
-      const placeholders = organizationIds.map(() => '?').join(',')
-      orgCondition = `d.organization_id IN (${placeholders})`
-      orgParams = organizationIds
+      // Optional: filter by specific organization
+      orgCondition += ' AND d.organization_id = ?'
+      orgParams.push(organizationFilter)
     }
 
     // Build WHERE clause for date filtering
@@ -87,15 +76,16 @@ export async function GET(request: NextRequest) {
       searchFilter += ' AND d.donor_email IS NULL'
     }
 
-    // Get total count of unique donors across all organizations
+    // Get total count of unique donors across all merchant organizations
     const countResult = await db.execute(
-      `SELECT COUNT(DISTINCT 
-         CASE 
-           WHEN d.donor_email IS NOT NULL THEN d.donor_email 
+      `SELECT COUNT(DISTINCT
+         CASE
+           WHEN d.donor_email IS NOT NULL THEN d.donor_email
            ELSE CONCAT('anon_', d.id)
          END
        ) as total
        FROM donations d
+       JOIN square_connections sc ON d.organization_id = sc.organization_id
        WHERE ${orgCondition}
          AND d.payment_status = 'COMPLETED'
          ${dateFilter}
@@ -128,9 +118,9 @@ export async function GET(request: NextRequest) {
     const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'total_donated'
     const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
 
-    // Get aggregated donor data across all organizations
+    // Get aggregated donor data across all merchant organizations
     const donorsResult = await db.execute(
-      `SELECT 
+      `SELECT
         COALESCE(d.donor_email, CONCAT('anonymous_', MIN(d.id))) as donor_identifier,
         d.donor_email,
         COALESCE(d.donor_name, 'Anonymous Donor') as donor_name,
@@ -144,6 +134,7 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
         SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
       FROM donations d
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE ${orgCondition}
         AND d.payment_status = 'COMPLETED'
         ${dateFilter}
@@ -155,10 +146,10 @@ export async function GET(request: NextRequest) {
       [...orgParams, ...dateParams, ...searchParams_arr, ...havingParams, limit, offset]
     )
 
-    // Get organization names for the results
+    // Get organization names for all merchant organizations
     const orgNamesResult = await db.execute(
-      `SELECT id, name FROM organizations WHERE id IN (${organizationIds.map(() => '?').join(',')})`,
-      organizationIds
+      `SELECT id, name FROM organizations WHERE square_merchant_id = ?`,
+      [merchant_id]
     )
     const orgNamesMap = Object.fromEntries(
       orgNamesResult.rows.map((row: any) => [row.id, row.name])
@@ -183,15 +174,16 @@ export async function GET(request: NextRequest) {
 
     const totalPages = Math.ceil(totalCount / limit)
 
-    // Get summary statistics
+    // Get summary statistics across all merchant organizations
     const statsResult = await db.execute(
-      `SELECT 
+      `SELECT
         COUNT(DISTINCT d.donor_email) as unique_donors_with_email,
         COUNT(DISTINCT CASE WHEN d.donor_email IS NULL THEN d.id END) as anonymous_donors,
         SUM(d.amount) as total_donated,
         AVG(d.amount) as average_donation,
         COUNT(DISTINCT d.organization_id) as organizations_with_donations
       FROM donations d
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE ${orgCondition}
         AND d.payment_status = 'COMPLETED'
         ${dateFilter}`,
@@ -216,7 +208,7 @@ export async function GET(request: NextRequest) {
         total_donated: parseFloat(stats.total_donated || 0).toFixed(2),
         average_donation: parseFloat(stats.average_donation || 0).toFixed(2),
         organizations_with_donations: parseInt(stats.organizations_with_donations || 0),
-        total_organizations: organizationIds.length,
+        total_organizations: parseInt(stats.organizations_with_donations || 0),
       },
       filters_applied: {
         search,
@@ -227,7 +219,6 @@ export async function GET(request: NextRequest) {
         end_date: endDate,
         organization_id: organizationFilter,
       },
-      merchant_organizations: organizationIds, // Show which orgs are included
     })
 
   } catch (error: any) {

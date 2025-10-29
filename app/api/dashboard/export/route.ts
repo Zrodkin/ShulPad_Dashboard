@@ -2,16 +2,16 @@
 // Export donations data as CSV or PDF
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getCurrentMerchantId, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const merchant_id = await getCurrentMerchantId()
 
-    if (!organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    if (!merchant_id) {
+      return NextResponse.json({ error: 'No merchant found' }, { status: 404 })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -40,9 +40,9 @@ export async function GET(request: NextRequest) {
       dateFilter += ' AND d.donor_email IS NOT NULL'
     }
 
-    // Get all donations matching criteria
+    // Get all donations matching criteria across all merchant organizations
     const result = await db.execute(
-      `SELECT 
+      `SELECT
         d.id,
         d.created_at,
         d.amount,
@@ -57,11 +57,12 @@ export async function GET(request: NextRequest) {
         d.receipt_sent,
         d.payment_status
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
         ${dateFilter}
       ORDER BY d.created_at DESC`,
-      [organization_id, ...dateParams]
+      [merchant_id, ...dateParams]
     )
 
     const donations = result.rows
