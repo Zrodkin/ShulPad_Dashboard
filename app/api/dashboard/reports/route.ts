@@ -2,16 +2,16 @@
 // Get report data for donations analytics
 
 import { NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getCurrentMerchantId, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET() {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const merchant_id = await getCurrentMerchantId()
 
-    if (!organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    if (!merchant_id) {
+      return NextResponse.json({ error: 'No merchant found' }, { status: 404 })
     }
 
     const db = createClient()
@@ -23,13 +23,14 @@ export async function GET() {
         DATE_FORMAT(d.created_at, '%Y-%m') as month_key,
         SUM(d.amount) as amount
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
         AND d.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
       GROUP BY month_key, month
       ORDER BY month_key DESC
       LIMIT 7`,
-      [organization_id]
+      [merchant_id]
     )
 
     const donationsByMonth = monthlyResult.rows.reverse().map((row: any) => ({
@@ -37,7 +38,7 @@ export async function GET() {
       amount: parseFloat(row.amount || 0),
     }))
 
-    // Get donations by kiosk location
+    // Get donations by kiosk location across all merchant organizations
     const kioskResult = await db.execute(
       `SELECT
         sc.location_id,
@@ -47,11 +48,11 @@ export async function GET() {
       LEFT JOIN donations d ON d.location_id = sc.location_id
         AND d.organization_id = sc.organization_id
         AND d.payment_status = 'COMPLETED'
-      WHERE sc.organization_id = ?
+      WHERE sc.merchant_id = ?
       GROUP BY sc.location_id, sc.location_name
       ORDER BY value DESC
       LIMIT 5`,
-      [organization_id]
+      [merchant_id]
     )
 
     const colors = [
@@ -75,19 +76,20 @@ export async function GET() {
       total: bestKiosk ? parseFloat(bestKiosk.value || 0) : 0,
     }
 
-    // Get peak donation time
+    // Get peak donation time across all merchant organizations
     const peakTimeResult = await db.execute(
       `SELECT
         HOUR(d.created_at) as hour,
         COUNT(d.id) as count
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
         AND d.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
       GROUP BY hour
       ORDER BY count DESC
       LIMIT 1`,
-      [organization_id]
+      [merchant_id]
     )
 
     const peakHour = peakTimeResult.rows[0]?.hour
@@ -104,24 +106,26 @@ export async function GET() {
       peakTime = `${formatHour(startHour)}-${formatHour(endHour)}`
     }
 
-    // Get growth rate (comparing last 90 days to previous 90 days)
+    // Get growth rate (comparing last 90 days to previous 90 days) across all merchant organizations
     const currentPeriodResult = await db.execute(
       `SELECT COALESCE(SUM(d.amount), 0) as total
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
         AND d.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)`,
-      [organization_id]
+      [merchant_id]
     )
 
     const previousPeriodResult = await db.execute(
       `SELECT COALESCE(SUM(d.amount), 0) as total
       FROM donations d
-      WHERE d.organization_id = ?
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
         AND d.created_at >= DATE_SUB(NOW(), INTERVAL 180 DAY)
         AND d.created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)`,
-      [organization_id]
+      [merchant_id]
     )
 
     const currentTotal = parseFloat(currentPeriodResult.rows[0]?.total || 0)

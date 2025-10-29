@@ -1,20 +1,20 @@
 // app/api/dashboard/donations/route.ts
-// Modified to fetch donations across ALL organizations for a merchant
+// Modified to fetch donations across ALL organizations for a merchant using JOIN pattern
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getMerchantOrganizationIds } from '@/lib/dashboard-auth'
+import { requireAuth, getCurrentMerchantId } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
-    
-    // Get ALL organization IDs for this merchant
-    const organizationIds = await getMerchantOrganizationIds()
 
-    if (organizationIds.length === 0) {
-      return NextResponse.json({ 
-        error: 'No organizations found for this merchant' 
+    // Get merchant ID from session
+    const merchant_id = await getCurrentMerchantId()
+
+    if (!merchant_id) {
+      return NextResponse.json({
+        error: 'No merchant found'
       }, { status: 404 })
     }
 
@@ -48,22 +48,14 @@ export async function GET(request: NextRequest) {
     let whereConditions: string[] = []
     let params: any[] = []
 
-    // CRITICAL CHANGE: Use IN clause for multiple organization IDs
+    // Use JOIN with square_connections to filter by merchant_id
+    whereConditions.push('sc.merchant_id = ?')
+    params.push(merchant_id)
+
+    // Optional: filter by specific organization if requested
     if (organizationFilter) {
-      // If specific org requested, check it belongs to this merchant
-      if (organizationIds.includes(organizationFilter)) {
-        whereConditions.push('d.organization_id = ?')
-        params.push(organizationFilter)
-      } else {
-        return NextResponse.json({ 
-          error: 'Organization not found or access denied' 
-        }, { status: 404 })
-      }
-    } else {
-      // Fetch from ALL merchant's organizations
-      const placeholders = organizationIds.map(() => '?').join(',')
-      whereConditions.push(`d.organization_id IN (${placeholders})`)
-      params.push(...organizationIds)
+      whereConditions.push('d.organization_id = ?')
+      params.push(organizationFilter)
     }
 
     whereConditions.push("d.payment_status = 'COMPLETED'")
@@ -125,10 +117,11 @@ export async function GET(request: NextRequest) {
     const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at'
     const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
 
-    // Get total count across all organizations
+    // Get total count across all merchant organizations
     const countResult = await db.execute(
       `SELECT COUNT(*) as total
        FROM donations d
+       JOIN square_connections sc ON d.organization_id = sc.organization_id
        WHERE ${whereClause}`,
       params
     )
@@ -136,9 +129,9 @@ export async function GET(request: NextRequest) {
     const totalCount = parseInt(countResult.rows[0].total)
     const totalPages = Math.ceil(totalCount / limit)
 
-    // Get donations with organization info
+    // Get donations with organization info using JOIN with square_connections
     const donationsResult = await db.execute(
-      `SELECT 
+      `SELECT
         d.id,
         d.organization_id,
         d.amount,
@@ -158,6 +151,7 @@ export async function GET(request: NextRequest) {
         o.name as organization_name,
         o.square_merchant_id
       FROM donations d
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
       LEFT JOIN organizations o ON d.organization_id = o.id
       WHERE ${whereClause}
       ORDER BY d.${safeSortBy} ${safeSortOrder}
@@ -185,14 +179,15 @@ export async function GET(request: NextRequest) {
       updated_at: row.updated_at,
     }))
 
-    // Get summary statistics across all organizations
+    // Get summary statistics across all merchant organizations
     const statsResult = await db.execute(
-      `SELECT 
+      `SELECT
         COUNT(DISTINCT d.organization_id) as total_organizations,
         SUM(d.amount) as total_amount,
         AVG(d.amount) as average_amount,
         COUNT(DISTINCT d.donor_email) as unique_donors
       FROM donations d
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE ${whereClause}`,
       params
     )
@@ -228,7 +223,6 @@ export async function GET(request: NextRequest) {
         search,
         organization_id: organizationFilter,
       },
-      merchant_organizations: organizationIds, // Show which orgs are included
     })
 
   } catch (error: any) {

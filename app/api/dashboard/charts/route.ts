@@ -2,16 +2,16 @@
 // Get chart data for dashboard visualizations
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getCurrentMerchantId, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const merchant_id = await getCurrentMerchantId()
 
-    if (!organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    if (!merchant_id) {
+      return NextResponse.json({ error: 'No merchant found' }, { status: 404 })
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -53,20 +53,21 @@ export async function GET(request: NextRequest) {
 
     switch (chartType) {
       case 'donations_over_time': {
-        // Daily donations grouped by date
+        // Daily donations grouped by date across all merchant organizations
         const result = await db.execute(
-          `SELECT 
+          `SELECT
             DATE(d.created_at) as date,
             COUNT(d.id) as count,
             SUM(d.amount) as total,
             AVG(d.amount) as average
           FROM donations d
-          WHERE d.organization_id = ?
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
             AND d.payment_status = 'COMPLETED'
             ${dateFilter}
           GROUP BY DATE(d.created_at)
           ORDER BY date ASC`,
-          [organization_id, ...dateParams]
+          [merchant_id, ...dateParams]
         )
 
         chartData = {
@@ -84,17 +85,18 @@ export async function GET(request: NextRequest) {
       case 'donations_by_hour': {
         // Donations grouped by hour of day (useful for understanding peak times)
         const result = await db.execute(
-          `SELECT 
+          `SELECT
             HOUR(d.created_at) as hour,
             COUNT(d.id) as count,
             SUM(d.amount) as total
           FROM donations d
-          WHERE d.organization_id = ?
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
             AND d.payment_status = 'COMPLETED'
             ${dateFilter}
           GROUP BY HOUR(d.created_at)
           ORDER BY hour ASC`,
-          [organization_id, ...dateParams]
+          [merchant_id, ...dateParams]
         )
 
         chartData = {
@@ -112,19 +114,20 @@ export async function GET(request: NextRequest) {
       case 'donations_by_day_of_week': {
         // Donations grouped by day of week
         const result = await db.execute(
-          `SELECT 
+          `SELECT
             DAYOFWEEK(d.created_at) as day_number,
             DAYNAME(d.created_at) as day_name,
             COUNT(d.id) as count,
             SUM(d.amount) as total,
             AVG(d.amount) as average
           FROM donations d
-          WHERE d.organization_id = ?
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
             AND d.payment_status = 'COMPLETED'
             ${dateFilter}
           GROUP BY day_number, day_name
           ORDER BY day_number ASC`,
-          [organization_id, ...dateParams]
+          [merchant_id, ...dateParams]
         )
 
         chartData = {
@@ -142,7 +145,7 @@ export async function GET(request: NextRequest) {
       case 'donations_by_amount_range': {
         // Donations grouped by amount ranges
         const result = await db.execute(
-          `SELECT 
+          `SELECT
             CASE
               WHEN d.amount < 25 THEN '$0-$24'
               WHEN d.amount < 50 THEN '$25-$49'
@@ -164,12 +167,13 @@ export async function GET(request: NextRequest) {
             COUNT(d.id) as count,
             SUM(d.amount) as total
           FROM donations d
-          WHERE d.organization_id = ?
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
             AND d.payment_status = 'COMPLETED'
             ${dateFilter}
           GROUP BY range_label, range_order
           ORDER BY range_order ASC`,
-          [organization_id, ...dateParams]
+          [merchant_id, ...dateParams]
         )
 
         chartData = {
@@ -187,19 +191,20 @@ export async function GET(request: NextRequest) {
       case 'donation_types': {
         // One-time vs recurring donations
         const result = await db.execute(
-          `SELECT 
-            CASE 
+          `SELECT
+            CASE
               WHEN d.is_recurring = 1 THEN 'Recurring'
               ELSE 'One-Time'
             END as type,
             COUNT(d.id) as count,
             SUM(d.amount) as total
           FROM donations d
-          WHERE d.organization_id = ?
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
             AND d.payment_status = 'COMPLETED'
             ${dateFilter}
           GROUP BY type`,
-          [organization_id, ...dateParams]
+          [merchant_id, ...dateParams]
         )
 
         chartData = {
@@ -214,23 +219,24 @@ export async function GET(request: NextRequest) {
       }
 
       case 'top_donors': {
-        // Top donors by total amount
+        // Top donors by total amount across all merchant organizations
         const limit = parseInt(searchParams.get('limit') || '10')
-        
+
         const result = await db.execute(
-          `SELECT 
+          `SELECT
             COALESCE(d.donor_name, 'Anonymous') as donor_name,
             d.donor_email,
             COUNT(d.id) as donation_count,
             SUM(d.amount) as total_donated
           FROM donations d
-          WHERE d.organization_id = ?
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
             AND d.payment_status = 'COMPLETED'
             ${dateFilter}
           GROUP BY donor_name, d.donor_email
           ORDER BY total_donated DESC
           LIMIT ?`,
-          [organization_id, ...dateParams, limit]
+          [merchant_id, ...dateParams, limit]
         )
 
         chartData = {
@@ -246,21 +252,22 @@ export async function GET(request: NextRequest) {
       }
 
       case 'monthly_comparison': {
-        // Compare donations by month (last 12 months)
+        // Compare donations by month (last 12 months) across all merchant organizations
         const result = await db.execute(
-          `SELECT 
+          `SELECT
             DATE_FORMAT(d.created_at, '%Y-%m') as month,
             DATE_FORMAT(d.created_at, '%b %Y') as month_label,
             COUNT(d.id) as count,
             SUM(d.amount) as total,
             AVG(d.amount) as average
           FROM donations d
-          WHERE d.organization_id = ?
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
             AND d.payment_status = 'COMPLETED'
             AND d.created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
           GROUP BY month, month_label
           ORDER BY month ASC`,
-          [organization_id]
+          [merchant_id]
         )
 
         chartData = {

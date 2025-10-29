@@ -2,21 +2,21 @@
 // Get kiosk locations and their statistics
 
 import { NextResponse } from 'next/server'
-import { getCurrentOrganizationId, requireAuth } from '@/lib/dashboard-auth'
+import { getCurrentMerchantId, requireAuth } from '@/lib/dashboard-auth'
 import { createClient } from '@/lib/db'
 
 export async function GET() {
   try {
     await requireAuth()
-    const organization_id = await getCurrentOrganizationId()
+    const merchant_id = await getCurrentMerchantId()
 
-    if (!organization_id) {
-      return NextResponse.json({ error: 'No organization found' }, { status: 404 })
+    if (!merchant_id) {
+      return NextResponse.json({ error: 'No merchant found' }, { status: 404 })
     }
 
     const db = createClient()
 
-    // Get kiosk locations with their stats
+    // Get kiosk locations with their stats across all merchant organizations
     const result = await db.execute(
       `SELECT
         sc.location_id,
@@ -32,10 +32,10 @@ export async function GET() {
       LEFT JOIN donations d ON d.location_id = sc.location_id
         AND d.organization_id = sc.organization_id
         AND d.payment_status = 'COMPLETED'
-      WHERE sc.organization_id = ?
+      WHERE sc.merchant_id = ?
       GROUP BY sc.location_id, sc.location_name
       ORDER BY total_amount DESC`,
-      [organization_id]
+      [merchant_id]
     )
 
     const kiosks = result.rows.map((row: any) => {
