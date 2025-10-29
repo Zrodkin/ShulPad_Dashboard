@@ -192,15 +192,16 @@ export async function getMerchantOrganizationIds(): Promise<string[]> {
   
   try {
     // Get all organization IDs associated with this merchant
+    // Note: SELECT includes created_at to allow ORDER BY (required for DISTINCT)
     const result = await db.execute(
-      `SELECT DISTINCT o.id 
+      `SELECT DISTINCT o.id, o.created_at
        FROM organizations o
        WHERE o.square_merchant_id = ?
        AND o.active = 1
        ORDER BY o.created_at ASC`,
       [session.merchant_id]
     )
-    
+
     return result.rows.map((row: any) => row.id)
   } catch (error) {
     console.error('Error fetching merchant organizations:', error)
