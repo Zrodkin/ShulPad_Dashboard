@@ -37,9 +37,10 @@ interface Donor {
 interface DonorDetailContentProps {
   donorEmail: string
   onBack: () => void
+  onViewTransaction?: (transactionId: string) => void
 }
 
-export function DonorDetailContent({ donorEmail, onBack }: DonorDetailContentProps) {
+export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: DonorDetailContentProps) {
   const [donor, setDonor] = useState<Donor | null>(null)
   const [donationHistory, setDonationHistory] = useState<DonationHistory[]>([])
   const [loading, setLoading] = useState(true)
@@ -219,7 +220,11 @@ export function DonorDetailContent({ donorEmail, onBack }: DonorDetailContentPro
                   </TableRow>
                 ) : (
                   donationHistory.map((donation) => (
-                    <TableRow key={donation.id}>
+                    <TableRow
+                      key={donation.id}
+                      onClick={() => onViewTransaction?.(donation.id.toString())}
+                      className="cursor-pointer hover:bg-accent/50 transition-colors"
+                    >
                       <TableCell>{formatDate(donation.created_at)}</TableCell>
                       <TableCell className="text-right font-medium">
                         ${donation.amount.toFixed(2)}
