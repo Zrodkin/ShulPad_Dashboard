@@ -7,7 +7,7 @@ import { createClient } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { email: string } }
+  { params }: { params: Promise<{ email: string }> }
 ) {
   try {
     await requireAuth()
@@ -17,7 +17,8 @@ export async function GET(
       return NextResponse.json({ error: 'No merchant found' }, { status: 404 })
     }
 
-    const donorEmail = decodeURIComponent(params.email)
+    const { email } = await params
+    const donorEmail = decodeURIComponent(email)
     const db = createClient()
 
     // Get donor summary statistics across all merchant organizations
