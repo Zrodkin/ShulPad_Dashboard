@@ -56,7 +56,20 @@ export async function GET(request: NextRequest) {
       [merchant_id]
     )
 
+    // Get today's donation count (always, regardless of period filter)
+    const todayStatsResult = await db.execute(
+      `SELECT
+        COUNT(DISTINCT d.id) as today_donations
+      FROM donations d
+      JOIN square_connections sc ON d.organization_id = sc.organization_id
+      WHERE sc.merchant_id = ?
+        AND d.payment_status = 'COMPLETED'
+        AND DATE(d.created_at) = CURDATE()`,
+      [merchant_id]
+    )
+
     const stats = statsResult.rows[0]
+    const todayStats = todayStatsResult.rows[0]
 
     // Get comparison with previous period
     let comparisonFilter = ''
@@ -121,6 +134,7 @@ export async function GET(request: NextRequest) {
         total_donations: parseInt(stats.total_donations),
         total_amount: parseFloat(stats.total_amount).toFixed(2),
         average_donation: parseFloat(stats.average_donation).toFixed(2),
+        today_donations: parseInt(todayStats.today_donations),
         unique_donors: parseInt(stats.unique_donors),
         recurring_donations: parseInt(stats.recurring_donations),
         receipts_sent: parseInt(stats.receipts_sent),

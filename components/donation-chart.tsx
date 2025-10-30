@@ -109,6 +109,9 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
                 stroke="hsl(var(--primary))"
                 strokeWidth={2}
                 dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                isAnimationActive={true}
+                animationDuration={1500}
+                animationEasing="ease-in-out"
               />
             </LineChart>
           </ResponsiveContainer>

@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, Users, TrendingUp } from "lucide-react"
+import { DollarSign, Users, Calendar } from "lucide-react"
 import { DonationChart } from "@/components/donation-chart"
 import { TopDonorsTable } from "@/components/top-donors-table"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ interface DashboardStats {
   total_donations: number
   total_amount: string
   average_donation: string
+  today_donations: number
   unique_donors: number
   recurring_donations: number
   receipts_sent: number
@@ -156,12 +157,12 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Average Donation</CardTitle>
-                <TrendingUp className="h-5 w-5 text-primary" />
+                <CardTitle className="text-sm font-medium text-muted-foreground">Today's Donations</CardTitle>
+                <Calendar className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-semibold text-foreground">${stats.average_donation}</div>
-                <p className="text-xs text-muted-foreground mt-1">Per donation</p>
+                <div className="text-2xl font-semibold text-foreground">{stats.today_donations}</div>
+                <p className="text-xs text-muted-foreground mt-1">Donations today</p>
               </CardContent>
             </Card>
           </>
