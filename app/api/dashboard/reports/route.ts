@@ -38,17 +38,16 @@ export async function GET() {
       amount: parseFloat(row.amount || 0),
     }))
 
-    // Get donations by kiosk location across all merchant organizations
-    const kioskResult = await db.execute(
+    // Get donations by organization across all merchant organizations
+    const orgResult = await db.execute(
       `SELECT
-        sc.location_id,
+        sc.organization_id,
         COALESCE(SUM(d.amount), 0) as value
       FROM square_connections sc
-      LEFT JOIN donations d ON d.location_id = sc.location_id
-        AND d.organization_id = sc.organization_id
+      LEFT JOIN donations d ON d.organization_id = sc.organization_id
         AND d.payment_status = 'COMPLETED'
       WHERE sc.merchant_id = ?
-      GROUP BY sc.location_id
+      GROUP BY sc.organization_id
       ORDER BY value DESC
       LIMIT 5`,
       [merchant_id]
@@ -62,17 +61,17 @@ export async function GET() {
       'hsl(var(--chart-5))',
     ]
 
-    const donationsByKiosk = kioskResult.rows.map((row: any, index: number) => ({
-      name: row.location_id || 'Unknown Location',
+    const donationsByKiosk = orgResult.rows.map((row: any, index: number) => ({
+      name: row.organization_id || 'Unknown Organization',
       value: parseFloat(row.value || 0),
       color: colors[index % colors.length],
     }))
 
-    // Get best performing kiosk
-    const bestKiosk = kioskResult.rows[0]
+    // Get best performing organization
+    const bestOrg = orgResult.rows[0]
     const bestPerformingKiosk = {
-      name: bestKiosk?.location_id || 'N/A',
-      total: bestKiosk ? parseFloat(bestKiosk.value || 0) : 0,
+      name: bestOrg?.organization_id || 'N/A',
+      total: bestOrg ? parseFloat(bestOrg.value || 0) : 0,
     }
 
     // Get peak donation time across all merchant organizations
