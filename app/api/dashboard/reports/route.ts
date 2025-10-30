@@ -42,14 +42,13 @@ export async function GET() {
     const kioskResult = await db.execute(
       `SELECT
         sc.location_id,
-        sc.location_name,
         COALESCE(SUM(d.amount), 0) as value
       FROM square_connections sc
       LEFT JOIN donations d ON d.location_id = sc.location_id
         AND d.organization_id = sc.organization_id
         AND d.payment_status = 'COMPLETED'
       WHERE sc.merchant_id = ?
-      GROUP BY sc.location_id, sc.location_name
+      GROUP BY sc.location_id
       ORDER BY value DESC
       LIMIT 5`,
       [merchant_id]
@@ -64,7 +63,7 @@ export async function GET() {
     ]
 
     const donationsByKiosk = kioskResult.rows.map((row: any, index: number) => ({
-      name: row.location_name || 'Unknown Location',
+      name: row.location_id || 'Unknown Location',
       value: parseFloat(row.value || 0),
       color: colors[index % colors.length],
     }))
@@ -72,7 +71,7 @@ export async function GET() {
     // Get best performing kiosk
     const bestKiosk = kioskResult.rows[0]
     const bestPerformingKiosk = {
-      name: bestKiosk?.location_name || 'N/A',
+      name: bestKiosk?.location_id || 'N/A',
       total: bestKiosk ? parseFloat(bestKiosk.value || 0) : 0,
     }
 
