@@ -8,10 +8,7 @@ import {
   Receipt,
   Users,
   BarChart3,
-  Monitor,
-  Target,
   Settings,
-  FileText,
   HelpCircle,
   Search,
   X,
@@ -34,9 +31,7 @@ const navigationItems = [
   { id: "transactions" as const, label: "Transactions", icon: Receipt },
   { id: "donors" as const, label: "Donors", icon: Users },
   { id: "reports" as const, label: "Reports", icon: BarChart3 },
-  { id: "campaigns" as const, label: "Campaigns", icon: Target },
   { id: "settings" as const, label: "Settings", icon: Settings },
-  { id: "logs" as const, label: "Logs", icon: FileText },
   { id: "help" as const, label: "Help", icon: HelpCircle },
 ]
 

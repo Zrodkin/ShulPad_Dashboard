@@ -7,9 +7,7 @@ import { DashboardContentConnected } from "@/components/dashboard-content-connec
 import { TransactionsContent } from "@/components/transactions-content"
 import { DonorsContent } from "@/components/donors-content"
 import { ReportsContent } from "@/components/reports-content"
-import { CampaignsContent } from "@/components/campaigns-content"
 import { SettingsContent } from "@/components/settings-content"
-import { LogsContent } from "@/components/logs-content"
 import { HelpContent } from "@/components/help-content"
 import { TransactionDetailContent } from "@/components/transaction-detail-content"
 import { DonorDetailContent } from "@/components/donor-detail-content"
@@ -20,9 +18,7 @@ export type NavigationItem =
   | "transactions"
   | "donors"
   | "reports"
-  | "campaigns"
   | "settings"
-  | "logs"
   | "help"
   | "transaction-detail"
   | "donor-detail"
@@ -133,9 +129,7 @@ export function AdminDashboard() {
         {activeView === "transactions" && <TransactionsContent onViewTransaction={handleViewTransaction} />}
         {activeView === "donors" && <DonorsContent onViewDonor={handleViewDonor} />}
         {activeView === "reports" && <ReportsContent />}
-        {activeView === "campaigns" && <CampaignsContent />}
         {activeView === "settings" && <SettingsContent />}
-        {activeView === "logs" && <LogsContent />}
         {activeView === "help" && <HelpContent />}
         {activeView === "transaction-detail" && selectedTransactionId && (
           <TransactionDetailContent
@@ -145,7 +139,11 @@ export function AdminDashboard() {
           />
         )}
         {activeView === "donor-detail" && selectedDonorEmail && (
-          <DonorDetailContent donorEmail={selectedDonorEmail} onBack={handleBackToDonors} />
+          <DonorDetailContent
+            donorEmail={selectedDonorEmail}
+            onBack={handleBackToDonors}
+            onViewTransaction={handleViewTransaction}
+          />
         )}
       </main>
     </div>
