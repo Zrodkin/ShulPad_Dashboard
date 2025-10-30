@@ -15,13 +15,6 @@ const stats = [
     icon: DollarSign,
     periods: { today: "$500", week: "$3,000", allTime: "$10,000" },
   },
-  {
-    title: "Active Kiosks",
-    value: "5",
-    change: "+2%",
-    icon: Monitor,
-    periods: { today: "2", week: "4", allTime: "5" },
-  },
   { title: "Donors", value: "100", change: "+5%", icon: Users, periods: { today: "10", week: "50", allTime: "100" } },
   {
     title: "Average Donation",
@@ -45,7 +38,7 @@ export function DashboardContent({ onDonorClick }: DashboardContentProps) {
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground text-balance">Dashboard Overview</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Welcome back! Here's what's happening with your donation kiosks.
+            Welcome back! Here's what's happening with your donations.
           </p>
         </div>
         <div className="flex gap-2 overflow-x-auto">

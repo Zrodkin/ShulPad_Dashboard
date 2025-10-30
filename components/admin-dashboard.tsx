@@ -7,7 +7,6 @@ import { DashboardContentConnected } from "@/components/dashboard-content-connec
 import { TransactionsContent } from "@/components/transactions-content"
 import { DonorsContent } from "@/components/donors-content"
 import { ReportsContent } from "@/components/reports-content"
-import { KiosksContent } from "@/components/kiosks-content"
 import { CampaignsContent } from "@/components/campaigns-content"
 import { SettingsContent } from "@/components/settings-content"
 import { LogsContent } from "@/components/logs-content"
@@ -21,7 +20,6 @@ export type NavigationItem =
   | "transactions"
   | "donors"
   | "reports"
-  | "kiosks"
   | "campaigns"
   | "settings"
   | "logs"
@@ -135,7 +133,6 @@ export function AdminDashboard() {
         {activeView === "transactions" && <TransactionsContent onViewTransaction={handleViewTransaction} />}
         {activeView === "donors" && <DonorsContent onViewDonor={handleViewDonor} />}
         {activeView === "reports" && <ReportsContent />}
-        {activeView === "kiosks" && <KiosksContent />}
         {activeView === "campaigns" && <CampaignsContent />}
         {activeView === "settings" && <SettingsContent />}
         {activeView === "logs" && <LogsContent />}

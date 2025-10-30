@@ -12,7 +12,7 @@ interface MonthData {
   amount: number
 }
 
-interface KioskData {
+interface OrganizationData {
   name: string
   value: number
   color: string
@@ -21,7 +21,7 @@ interface KioskData {
 
 interface ReportsData {
   donationsByMonth: MonthData[]
-  donationsByKiosk: KioskData[]
+  donationsByKiosk: OrganizationData[]
   insights: {
     bestPerformingKiosk: {
       name: string
@@ -69,7 +69,7 @@ export function ReportsContent() {
       ["Month", "Amount"],
       ...donationsByMonth.map((item) => [item.month, item.amount]),
       [],
-      ["Kiosk", "Total Donations"],
+      ["Organization", "Total Donations"],
       ...donationsByKiosk.map((item) => [item.name, item.value]),
     ]
 
@@ -153,9 +153,9 @@ export function ReportsContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base sm:text-lg">Donations by Kiosk</CardTitle>
+            <CardTitle className="text-base sm:text-lg">Donations by Organization</CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Distribution of donations across all kiosk locations
+              Distribution of donations across all organizations
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -200,7 +200,7 @@ export function ReportsContent() {
       <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm sm:text-base">Best Performing Kiosk</CardTitle>
+            <CardTitle className="text-sm sm:text-base">Best Performing Organization</CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
