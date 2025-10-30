@@ -20,7 +20,6 @@ export async function GET() {
     const result = await db.execute(
       `SELECT
         sc.location_id,
-        sc.location_name,
         COUNT(DISTINCT d.id) as total_donations,
         COALESCE(SUM(d.amount), 0) as total_amount,
         MAX(d.created_at) as last_active,
@@ -33,7 +32,7 @@ export async function GET() {
         AND d.organization_id = sc.organization_id
         AND d.payment_status = 'COMPLETED'
       WHERE sc.merchant_id = ?
-      GROUP BY sc.location_id, sc.location_name
+      GROUP BY sc.location_id
       ORDER BY total_amount DESC`,
       [merchant_id]
     )
@@ -62,7 +61,7 @@ export async function GET() {
 
       return {
         id: row.location_id,
-        location: row.location_name || 'Unknown Location',
+        location: row.location_id || 'Unknown Location',
         status: row.status,
         totalDonations: `$${parseFloat(row.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         totalDonationsRaw: parseFloat(row.total_amount || 0),
