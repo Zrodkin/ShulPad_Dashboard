@@ -117,13 +117,12 @@ export default function DashboardLoginPage() {
       </div>
 
       <Card
-        className="max-w-md hover-lift shadow-2xl relative z-10 opacity-100 w-full border-transparent"
+        className="max-w-md hover-lift relative z-10 w-full"
         style={{
-          background: "rgba(255, 255, 255, 0.25)",
-          backdropFilter: "blur(40px) saturate(250%)",
-          border: "1px solid rgba(255, 255, 255, 0.4)",
+          background: "rgb(255, 255, 255)",
+          border: "1px solid rgba(0, 0, 0, 0.08)",
           boxShadow:
-            "0 32px 80px rgba(0, 0, 0, 0.3), 0 16px 64px rgba(255, 255, 255, 0.2), inset 0 3px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.3)",
+            "0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.08)",
         }}
       >
         <div className="flex justify-center pt-8 pb-4">
