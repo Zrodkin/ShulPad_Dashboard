@@ -16,9 +16,10 @@ export async function GET() {
 
     const db = createClient()
 
-    // Get kiosk locations with their stats across all merchant organizations
+    // Get organizations with their stats across all merchant organizations
     const result = await db.execute(
       `SELECT
+        sc.organization_id,
         sc.location_id,
         COUNT(DISTINCT d.id) as total_donations,
         COALESCE(SUM(d.amount), 0) as total_amount,
@@ -28,11 +29,10 @@ export async function GET() {
           ELSE 'offline'
         END as status
       FROM square_connections sc
-      LEFT JOIN donations d ON d.location_id = sc.location_id
-        AND d.organization_id = sc.organization_id
+      LEFT JOIN donations d ON d.organization_id = sc.organization_id
         AND d.payment_status = 'COMPLETED'
       WHERE sc.merchant_id = ?
-      GROUP BY sc.location_id
+      GROUP BY sc.organization_id, sc.location_id
       ORDER BY total_amount DESC`,
       [merchant_id]
     )
@@ -60,8 +60,8 @@ export async function GET() {
       }
 
       return {
-        id: row.location_id,
-        location: row.location_id || 'Unknown Location',
+        id: row.organization_id,
+        location: row.organization_id || 'Unknown Organization',
         status: row.status,
         totalDonations: `$${parseFloat(row.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         totalDonationsRaw: parseFloat(row.total_amount || 0),
