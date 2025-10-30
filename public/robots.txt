@@ -1,0 +1,9 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow private areas
+Disallow: /dashboard/admin
+Disallow: /api/
+
+Sitemap: https://shulpad.com/sitemap.xml
