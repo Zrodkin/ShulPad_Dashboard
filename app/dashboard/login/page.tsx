@@ -1,9 +1,11 @@
 // app/dashboard/login/page.tsx
 "use client"
 
+import type React from "react"
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import Image from "next/image"
@@ -58,125 +60,137 @@ export default function DashboardLoginPage() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      <div className="min-h-screen flex items-center justify-center"
+        style={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)",
+        }}>
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative overflow-hidden">
-      {/* Subtle background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950" />
-      <div className="absolute inset-0 bg-grid-slate-800/[0.05] bg-[size:32px_32px]" />
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)",
+        backgroundSize: "400% 400%",
+        animation: "gradient 15s ease infinite",
+      }}
+    >
+      <div
+        className="absolute inset-0 opacity-0"
+        style={{
+          background: "rgba(0, 0, 0, 0.15)",
+        }}
+      ></div>
 
-      {/* Content */}
-      <div className="relative w-full max-w-md">
-        {/* Logo and branding */}
-        <div className="text-center mb-12 space-y-6">
-          <div className="flex justify-center">
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-slate-600 to-slate-400 rounded-2xl opacity-20 blur-lg group-hover:opacity-30 transition duration-300" />
-              <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-                <Image
-                  src="/shulpad-logo.png"
-                  alt="ShulPad"
-                  width={120}
-                  height={120}
-                  className="w-28 h-28 object-contain"
-                  priority
-                />
-              </div>
-            </div>
+      {/* Floating glass orbs for visual interest */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          className="absolute top-1/4 left-1/4 w-32 h-32 rounded-full opacity-50 animate-pulse"
+          style={{
+            background: "rgba(255, 255, 255, 0.15)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            border: "2px solid rgba(255, 255, 255, 0.3)",
+            boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+          }}
+        ></div>
+        <div
+          className="absolute top-3/4 right-1/4 w-24 h-24 rounded-full opacity-40 animate-pulse delay-1000"
+          style={{
+            background: "rgba(255, 255, 255, 0.15)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            border: "2px solid rgba(255, 255, 255, 0.3)",
+            boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+          }}
+        ></div>
+        <div
+          className="absolute top-1/2 right-1/3 w-16 h-16 rounded-full opacity-45 animate-pulse delay-500"
+          style={{
+            background: "rgba(255, 255, 255, 0.15)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            border: "2px solid rgba(255, 255, 255, 0.3)",
+            boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+          }}
+        ></div>
+      </div>
+
+      <Card
+        className="max-w-md hover-lift shadow-2xl relative z-10 opacity-100 w-full border-transparent"
+        style={{
+          background: "rgba(255, 255, 255, 0.25)",
+          backdropFilter: "blur(40px) saturate(250%)",
+          border: "1px solid rgba(255, 255, 255, 0.4)",
+          boxShadow:
+            "0 32px 80px rgba(0, 0, 0, 0.3), 0 16px 64px rgba(255, 255, 255, 0.2), inset 0 3px 0 rgba(255, 255, 255, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.3)",
+        }}
+      >
+        <div className="flex justify-center pt-8 pb-4">
+          <div
+            className="relative w-24 h-24 rounded-full overflow-hidden"
+            style={{
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(255, 255, 255, 0.3)",
+            }}
+          >
+            <Image src="/shulpad-logo.png" alt="ShulPad Logo" fill className="object-cover" />
           </div>
+        </div>
 
-          <div className="space-y-3">
-            <h1 className="text-4xl font-bold tracking-tight text-white">
-              ShulPad
-            </h1>
-            <p className="text-slate-400 text-base font-medium">
-              Merchant Dashboard
+        <CardHeader className="text-center space-y-2">
+          <CardTitle className="text-3xl font-bold font-sans text-card-foreground">ShulPad Dashboard</CardTitle>
+          <CardDescription className="text-card-foreground/70 font-sans">
+            Sign in with Square to continue
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Error alert */}
+          {error && (
+            <Alert variant="destructive" className="bg-red-950/50 border-red-900/50 text-red-200">
+              <AlertDescription className="text-sm">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4">
+            <Button
+              type="submit"
+              className="w-full ripple-effect hover-lift font-sans font-bold py-5 transition-all duration-300"
+              style={{ backgroundColor: "#0C115B", color: "white" }}
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Connecting to Square...</span>
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-3">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4.01 8.54C6.15 8.54 7.89 6.8 7.89 4.66S6.15.78 4.01.78.13 2.52.13 4.66s1.74 3.88 3.88 3.88zm0 6.88c-2.14 0-3.88 1.74-3.88 3.88s1.74 3.88 3.88 3.88 3.88-1.74 3.88-3.88-1.74-3.88-3.88-3.88zm15.98 0c-2.14 0-3.88 1.74-3.88 3.88s1.74 3.88 3.88 3.88 3.88-1.74 3.88-3.88-1.74-3.88-3.88-3.88zm0-6.88c2.14 0 3.88-1.74 3.88-3.88S22.13.78 19.99.78s-3.88 1.74-3.88 3.88 1.74 3.88 3.88 3.88z" />
+                  </svg>
+                  <span>Sign in with Square</span>
+                </span>
+              )}
+            </Button>
+          </form>
+
+          {/* Sign up link */}
+          <div className="text-center">
+            <p className="text-sm text-card-foreground/60">
+              Don't have a Square account?{' '}
+              <a
+                href="https://squareup.com/signup"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-card-foreground font-medium hover:underline transition-colors duration-200"
+              >
+                Sign up
+              </a>
             </p>
           </div>
-        </div>
-
-        {/* Login card */}
-        <div className="relative group">
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-600 to-slate-400 rounded-2xl opacity-20 blur group-hover:opacity-30 transition duration-300" />
-          <div className="relative bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-2xl p-8 shadow-2xl">
-            <div className="space-y-6">
-              {/* Welcome text */}
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-white">
-                  Welcome back
-                </h2>
-                <p className="text-slate-400 text-sm">
-                  Sign in with your Square account to continue
-                </p>
-              </div>
-
-              {/* Error alert */}
-              {error && (
-                <Alert variant="destructive" className="bg-red-950/50 border-red-900/50 text-red-200">
-                  <AlertDescription className="text-sm">{error}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Login button */}
-              <Button
-                onClick={handleLogin}
-                disabled={loading}
-                className="w-full h-14 text-base font-semibold bg-white text-slate-950 hover:bg-slate-100 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                size="lg"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-3">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Connecting to Square...</span>
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-center gap-3">
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M4.01 8.54C6.15 8.54 7.89 6.8 7.89 4.66S6.15.78 4.01.78.13 2.52.13 4.66s1.74 3.88 3.88 3.88zm0 6.88c-2.14 0-3.88 1.74-3.88 3.88s1.74 3.88 3.88 3.88 3.88-1.74 3.88-3.88-1.74-3.88-3.88-3.88zm15.98 0c-2.14 0-3.88 1.74-3.88 3.88s1.74 3.88 3.88 3.88 3.88-1.74 3.88-3.88-1.74-3.88-3.88-3.88zm0-6.88c2.14 0 3.88-1.74 3.88-3.88S22.13.78 19.99.78s-3.88 1.74-3.88 3.88 1.74 3.88 3.88 3.88z" />
-                    </svg>
-                    <span>Sign in with Square</span>
-                  </span>
-                )}
-              </Button>
-
-              {/* Sign up link */}
-              <div className="text-center pt-2">
-                <p className="text-sm text-slate-500">
-                  Don't have a Square account?{' '}
-                  <a
-                    href="https://squareup.com/signup"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-300 hover:text-white font-medium transition-colors duration-200"
-                  >
-                    Sign up
-                  </a>
-                </p>
-              </div>
-
-              {/* Privacy notice */}
-              <div className="pt-6 border-t border-slate-800/50">
-                <p className="text-xs text-slate-500 text-center leading-relaxed">
-                  By signing in, you agree to connect your Square account with ShulPad.
-                  We only access donation and customer data to provide analytics.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer text */}
-        <div className="text-center mt-8">
-          <p className="text-xs text-slate-600">
-            © {new Date().getFullYear()} ShulPad. All rights reserved.
-          </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
