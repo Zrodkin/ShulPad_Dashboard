@@ -268,7 +268,11 @@ export function TransactionsContent({ onViewTransaction }: TransactionsContentPr
                     </TableHeader>
                     <TableBody>
                       {transactions.map((transaction) => (
-                        <TableRow key={transaction.payment_id || `donation-${transaction.id}-${transaction.created_at}`} className="cursor-pointer hover:bg-muted/50">
+                        <TableRow
+                          key={transaction.payment_id || `donation-${transaction.id}-${transaction.created_at}`}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => onViewTransaction(transaction.payment_id || transaction.id.toString())}
+                        >
                           <TableCell className="font-mono text-xs sm:text-sm whitespace-nowrap">
                             {transaction.payment_id?.slice(-8) || `#${transaction.id}`}
                           </TableCell>

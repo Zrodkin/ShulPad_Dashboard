@@ -187,6 +187,11 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
                         <TableRow
                           key={donor.donor_email || `anon-${idx}`}
                           className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => {
+                            if (donor.donor_email) {
+                              onViewDonor(donor.donor_email)
+                            }
+                          }}
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
