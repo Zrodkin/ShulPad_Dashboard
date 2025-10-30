@@ -21,7 +21,7 @@ export async function GET(
       }, { status: 404 })
     }
 
-    const { id } = params
+    const { id } = await params
     const db = createClient()
 
     // Try to find donation by payment_id first, then by id
@@ -34,7 +34,6 @@ export async function GET(
         d.currency,
         d.donor_name,
         d.donor_email,
-        d.donor_phone,
         d.payment_id,
         d.square_order_id,
         d.payment_status,
@@ -71,7 +70,6 @@ export async function GET(
       currency: row.currency,
       donor_name: row.donor_name,
       donor_email: row.donor_email,
-      donor_phone: row.donor_phone,
       payment_id: row.payment_id,
       square_order_id: row.square_order_id,
       payment_status: row.payment_status,
