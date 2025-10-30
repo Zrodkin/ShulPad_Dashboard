@@ -99,14 +99,6 @@ export async function GET(request: NextRequest) {
       ? ((stats.total_donations - previousStats.total_donations) / previousStats.total_donations * 100).toFixed(1)
       : 0
 
-    // Get active organizations count across all merchant organizations
-    const orgsResult = await db.execute(
-      `SELECT COUNT(DISTINCT organization_id) as active_orgs
-       FROM square_connections
-       WHERE merchant_id = ?`,
-      [merchant_id]
-    )
-
     // Get recent donations trend (last 30 days, grouped by day) across all merchant organizations
     const trendResult = await db.execute(
       `SELECT
@@ -132,7 +124,6 @@ export async function GET(request: NextRequest) {
         unique_donors: parseInt(stats.unique_donors),
         recurring_donations: parseInt(stats.recurring_donations),
         receipts_sent: parseInt(stats.receipts_sent),
-        active_organizations: parseInt(orgsResult.rows[0]?.active_orgs || 1),
       },
       changes: {
         amount_change: parseFloat(amountChange),
