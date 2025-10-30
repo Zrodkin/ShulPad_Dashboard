@@ -1,76 +1,150 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Pie, PieChart, Cell } from "recharts"
+import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { FileDown, FileText, FileSpreadsheet } from "lucide-react"
+import { Calendar, FileDown, TrendingUp, Users, DollarSign, Activity } from "lucide-react"
 import { useEffect, useState } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 
-interface MonthData {
-  month: string
+interface Donation {
+  id: number
   amount: number
+  currency: string
+  donor_name: string | null
+  donor_email: string | null
+  payment_id: string | null
+  organization_name: string | null
+  payment_status: string
+  created_at: string
 }
 
-interface OrganizationData {
-  name: string
-  value: number
-  color: string
-  [key: string]: string | number
-}
-
-interface ReportsData {
-  donationsByMonth: MonthData[]
-  donationsByKiosk: OrganizationData[]
-  insights: {
-    bestPerformingKiosk: {
-      name: string
-      total: number
-    }
-    peakTime: string
-    growthRate: string
-  }
+interface DailyData {
+  date: string
+  amount: number
+  count: number
 }
 
 export function ReportsContent() {
-  const [reportsData, setReportsData] = useState<ReportsData>({
-    donationsByMonth: [],
-    donationsByKiosk: [],
-    insights: {
-      bestPerformingKiosk: { name: 'N/A', total: 0 },
-      peakTime: 'N/A',
-      growthRate: '0',
-    },
-  })
+  const [donations, setDonations] = useState<Donation[]>([])
+  const [dailyData, setDailyData] = useState<DailyData[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Date range filters
+  const [dateRange, setDateRange] = useState<string>("30")
+  const [customStartDate, setCustomStartDate] = useState<string>("")
+  const [customEndDate, setCustomEndDate] = useState<string>("")
+
+  // Stats
+  const [stats, setStats] = useState({
+    totalAmount: 0,
+    totalCount: 0,
+    averageAmount: 0,
+    uniqueDonors: 0
+  })
+
   useEffect(() => {
-    const fetchReportsData = async () => {
-      try {
-        const response = await fetch('/api/dashboard/reports')
-        if (response.ok) {
-          const data = await response.json()
-          setReportsData(data)
-        }
-      } catch (error) {
-        console.error('Error fetching reports data:', error)
-      } finally {
-        setLoading(false)
+    fetchReportsData()
+  }, [dateRange, customStartDate, customEndDate])
+
+  const getDateRange = () => {
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+
+    if (dateRange === 'custom') {
+      return {
+        startDate: customStartDate,
+        endDate: customEndDate
       }
     }
 
-    fetchReportsData()
-  }, [])
+    const days = parseInt(dateRange)
+    const startDate = new Date(today)
+    startDate.setDate(startDate.getDate() - days)
+    startDate.setHours(0, 0, 0, 0)
 
-  const donationsByMonth = reportsData.donationsByMonth
-  const donationsByKiosk = reportsData.donationsByKiosk
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    }
+  }
+
+  const fetchReportsData = async () => {
+    try {
+      setLoading(true)
+      const { startDate, endDate } = getDateRange()
+
+      if (!startDate || !endDate) return
+
+      const params = new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate,
+        limit: '1000',
+        sort_by: 'created_at',
+        sort_order: 'DESC'
+      })
+
+      const response = await fetch(`/api/dashboard/donations?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setDonations(data.donations)
+
+        // Calculate stats
+        const total = data.donations.reduce((sum: number, d: Donation) => sum + d.amount, 0)
+        const uniqueEmails = new Set(data.donations.map((d: Donation) => d.donor_email).filter(Boolean))
+
+        setStats({
+          totalAmount: total,
+          totalCount: data.donations.length,
+          averageAmount: data.donations.length > 0 ? total / data.donations.length : 0,
+          uniqueDonors: uniqueEmails.size
+        })
+
+        // Process daily data for chart
+        const dailyMap = new Map<string, { amount: number, count: number }>()
+        data.donations.forEach((d: Donation) => {
+          const date = new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          const existing = dailyMap.get(date) || { amount: 0, count: 0 }
+          dailyMap.set(date, {
+            amount: existing.amount + d.amount,
+            count: existing.count + 1
+          })
+        })
+
+        const dailyArray = Array.from(dailyMap.entries())
+          .map(([date, data]) => ({ date, ...data }))
+          .reverse()
+          .slice(-30) // Show last 30 days max
+
+        setDailyData(dailyArray)
+      }
+    } catch (error) {
+      console.error('Error fetching reports data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleExportCSV = () => {
     const csvData = [
-      ["Month", "Amount"],
-      ...donationsByMonth.map((item) => [item.month, item.amount]),
+      ["Date", "Donor Name", "Donor Email", "Amount", "Organization", "Payment ID"],
+      ...donations.map((d) => [
+        new Date(d.created_at).toLocaleDateString(),
+        d.donor_name || 'Anonymous',
+        d.donor_email || 'N/A',
+        d.amount.toFixed(2),
+        d.organization_name || 'N/A',
+        d.payment_id || d.id.toString()
+      ]),
       [],
-      ["Organization", "Total Donations"],
-      ...donationsByKiosk.map((item) => [item.name, item.value]),
+      ["Summary"],
+      ["Total Amount", stats.totalAmount.toFixed(2)],
+      ["Total Donations", stats.totalCount.toString()],
+      ["Average Donation", stats.averageAmount.toFixed(2)],
+      ["Unique Donors", stats.uniqueDonors.toString()],
     ]
 
     const csvContent = csvData.map((row) => row.join(",")).join("\n")
@@ -83,177 +157,261 @@ export function ReportsContent() {
     window.URL.revokeObjectURL(url)
   }
 
-  const handleExportPDF = () => {
-    // In a real implementation, you would use a library like jsPDF
-    alert("PDF export functionality would be implemented with a library like jsPDF or by generating on the server")
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">Reports</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Analyze donation trends and performance metrics
+            View and analyze donation data with custom date ranges
           </p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="gap-2">
-              <FileDown className="h-4 w-4" />
-              Generate Report
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleExportCSV} className="gap-2 cursor-pointer">
-              <FileSpreadsheet className="h-4 w-4" />
-              Export as CSV
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
-              <FileText className="h-4 w-4" />
-              Export as PDF
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button onClick={handleExportCSV} className="gap-2 w-full sm:w-auto">
+          <FileDown className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
+      {/* Date Range Filter */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Date Range Filter
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select date range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 Days</SelectItem>
+                  <SelectItem value="30">Last 30 Days</SelectItem>
+                  <SelectItem value="90">Last 90 Days</SelectItem>
+                  <SelectItem value="365">Last Year</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateRange === 'custom' && (
+              <>
+                <div className="flex-1">
+                  <Input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    placeholder="Start Date"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    placeholder="End Date"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Donations</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${loading ? '...' : stats.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              In selected period
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loading ? '...' : stats.totalCount.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Number of donations
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Average Donation</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${loading ? '...' : stats.averageAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Per transaction
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unique Donors</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loading ? '...' : stats.uniqueDonors.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Individual contributors
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Chart */}
+      {dailyData.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base sm:text-lg">Donations Over Time</CardTitle>
             <CardDescription className="text-xs sm:text-sm">
-              Monthly donation totals for the past 7 months
+              Daily donation totals for the selected period
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="text-center py-16 text-muted-foreground">Loading chart data...</div>
-            ) : donationsByMonth.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">No data available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-                <BarChart data={donationsByMonth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
-                      fontSize: "12px",
-                    }}
-                  />
-                  <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={dailyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="date"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "var(--radius)",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value: any, name: string) => {
+                    if (name === 'amount') return [`$${value.toFixed(2)}`, 'Amount']
+                    if (name === 'count') return [value, 'Donations']
+                    return [value, name]
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
+      )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base sm:text-lg">Donations by Organization</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Distribution of donations across all organizations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-16 text-muted-foreground">Loading chart data...</div>
-            ) : donationsByKiosk.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">No data available</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-                <PieChart>
-                  <Pie
-                    data={donationsByKiosk}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={60}
-                    className="sm:outerRadius-[80]"
-                    fill="#8884d8"
-                    dataKey="value"
-                    style={{ fontSize: "10px" }}
-                  >
-                    {donationsByKiosk.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+      {/* Donations Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base sm:text-lg">Donation Details</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
+            Complete list of donations in the selected period
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">Loading report data...</div>
+          ) : donations.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No donations found for the selected period
+            </div>
+          ) : (
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Date</TableHead>
+                      <TableHead className="whitespace-nowrap">Donor</TableHead>
+                      <TableHead className="whitespace-nowrap">Email</TableHead>
+                      <TableHead className="whitespace-nowrap">Amount</TableHead>
+                      <TableHead className="whitespace-nowrap">Organization</TableHead>
+                      <TableHead className="whitespace-nowrap">Payment ID</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {donations.slice(0, 100).map((donation) => (
+                      <TableRow key={donation.id}>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {formatDate(donation.created_at)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {donation.donor_name || 'Anonymous'}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {donation.donor_email || 'N/A'}
+                        </TableCell>
+                        <TableCell className="font-semibold whitespace-nowrap">
+                          ${donation.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {donation.organization_name || 'N/A'}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs whitespace-nowrap">
+                          {donation.payment_id?.slice(-8) || `#${donation.id}`}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
-                      fontSize: "12px",
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm sm:text-base">Best Performing Organization</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-muted-foreground text-sm">Loading...</div>
-            ) : (
-              <>
-                <div className="text-xl sm:text-2xl font-semibold text-foreground">
-                  {reportsData.insights.bestPerformingKiosk.name}
-                </div>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  ${reportsData.insights.bestPerformingKiosk.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} total donations
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm sm:text-base">Peak Donation Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-muted-foreground text-sm">Loading...</div>
-            ) : (
-              <>
-                <div className="text-xl sm:text-2xl font-semibold text-foreground">
-                  {reportsData.insights.peakTime}
-                </div>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Based on last 90 days</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm sm:text-base">Growth Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-muted-foreground text-sm">Loading...</div>
-            ) : (
-              <>
-                <div className="text-xl sm:text-2xl font-semibold text-foreground">
-                  {parseFloat(reportsData.insights.growthRate) >= 0 ? '+' : ''}{reportsData.insights.growthRate}%
-                </div>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Compared to previous 90 days</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  </TableBody>
+                </Table>
+                {donations.length > 100 && (
+                  <div className="text-center py-4 text-sm text-muted-foreground">
+                    Showing first 100 of {donations.length} donations. Export to CSV to see all.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
