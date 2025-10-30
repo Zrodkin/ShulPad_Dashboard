@@ -16,7 +16,7 @@ interface DashboardStats {
   unique_donors: number
   recurring_donations: number
   receipts_sent: number
-  active_kiosks: number
+  active_organizations: number
 }
 
 interface DashboardContentProps {
@@ -80,7 +80,7 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
         <div>
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground text-balance">Dashboard Overview</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Welcome back! Here's what's happening with your donation kiosks.
+            Welcome back! Here's what's happening with your donations.
           </p>
         </div>
         <div className="flex gap-2 overflow-x-auto">
@@ -146,11 +146,11 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active Kiosks</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Active Organizations</CardTitle>
                 <Monitor className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-semibold text-foreground">{stats.active_kiosks}</div>
+                <div className="text-2xl font-semibold text-foreground">{stats.active_organizations}</div>
                 <p className="text-xs text-muted-foreground mt-1">Currently active</p>
               </CardContent>
             </Card>
