@@ -2,7 +2,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import Image from "next/image"
 
-export default function DashboardLoginPage() {
+function LoginPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
@@ -191,5 +191,20 @@ export default function DashboardLoginPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function DashboardLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center"
+        style={{
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)",
+        }}>
+        <Loader2 className="h-8 w-8 animate-spin text-white" />
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   )
 }
