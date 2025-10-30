@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, Users, TrendingUp, Monitor } from "lucide-react"
+import { DollarSign, Users, TrendingUp } from "lucide-react"
 import { DonationChart } from "@/components/donation-chart"
 import { TopDonorsTable } from "@/components/top-donors-table"
 import { Button } from "@/components/ui/button"
@@ -16,7 +16,6 @@ interface DashboardStats {
   unique_donors: number
   recurring_donations: number
   receipts_sent: number
-  active_organizations: number
 }
 
 interface DashboardContentProps {
@@ -112,10 +111,10 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           // Loading skeletons
-          Array.from({ length: 4 }).map((_, i) => (
+          Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <Skeleton className="h-4 w-24" />
@@ -141,17 +140,6 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
                     {formatChange(changes.amount_change)}
                   </p>
                 )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Active Organizations</CardTitle>
-                <Monitor className="h-5 w-5 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-semibold text-foreground">{stats.active_organizations}</div>
-                <p className="text-xs text-muted-foreground mt-1">Currently active</p>
               </CardContent>
             </Card>
 
