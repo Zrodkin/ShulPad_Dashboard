@@ -164,10 +164,7 @@ function LoginPageContent() {
                   <span>Connecting to Square...</span>
                 </span>
               ) : (
-                <span className="flex items-center justify-center gap-3">
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M4.01 8.54C6.15 8.54 7.89 6.8 7.89 4.66S6.15.78 4.01.78.13 2.52.13 4.66s1.74 3.88 3.88 3.88zm0 6.88c-2.14 0-3.88 1.74-3.88 3.88s1.74 3.88 3.88 3.88 3.88-1.74 3.88-3.88-1.74-3.88-3.88-3.88zm15.98 0c-2.14 0-3.88 1.74-3.88 3.88s1.74 3.88 3.88 3.88 3.88-1.74 3.88-3.88-1.74-3.88-3.88-3.88zm0-6.88c2.14 0 3.88-1.74 3.88-3.88S22.13.78 19.99.78s-3.88 1.74-3.88 3.88 1.74 3.88 3.88 3.88z" />
-                  </svg>
+             <span className="flex items-center justify-center gap-3">
                   <span>Sign in with Square</span>
                 </span>
               )}
