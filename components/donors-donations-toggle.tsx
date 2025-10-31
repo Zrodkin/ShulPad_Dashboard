@@ -222,14 +222,7 @@ export function DonorsDonationsToggle({ onDonorClick, onTransactionClick, period
               {recentDonations.map((donation, index) => (
                 <div
                   key={donation.id}
-                  onClick={() => {
-                    // If there's no donor info (no email and no name), route to transaction detail
-                    if (!donation.donor_identifier) {
-                      onTransactionClick?.(donation.id)
-                    } else {
-                      onDonorClick?.(donation.donor_identifier)
-                    }
-                  }}
+                  onClick={() => onTransactionClick?.(donation.id)}
                   className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:bg-accent/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
