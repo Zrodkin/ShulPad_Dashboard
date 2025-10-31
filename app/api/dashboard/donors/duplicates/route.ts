@@ -63,37 +63,43 @@ export async function GET(request: NextRequest) {
     }
 
     // Find duplicates by similar names (case-insensitive, different emails or no email)
-    // First, get all unique donor names (lowercased) that appear more than once
+    // Use a two-step approach: first group by (lower_name, exact_name, email),
+    // then find which lowercased names have multiple such combinations
     const nameDuplicatesResult = await db.execute(
-      `SELECT
-        LOWER(d.donor_name) as name_lower,
-        d.donor_name,
-        d.donor_email,
-        COUNT(DISTINCT d.id) as donation_count,
-        SUM(d.amount) as total_amount,
-        MIN(d.created_at) as first_donation,
-        MAX(d.created_at) as last_donation
-      FROM donations d
-      JOIN square_connections sc ON d.organization_id = sc.organization_id
-      WHERE sc.merchant_id = ?
-        AND d.payment_status = 'COMPLETED'
-        AND d.donor_name IS NOT NULL
-      GROUP BY LOWER(d.donor_name), d.donor_name, d.donor_email
-      HAVING LOWER(d.donor_name) IN (
-        SELECT LOWER(d2.donor_name)
-        FROM donations d2
-        JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
-        WHERE sc2.merchant_id = ?
-          AND d2.payment_status = 'COMPLETED'
-          AND d2.donor_name IS NOT NULL
-        GROUP BY LOWER(d2.donor_name)
-        HAVING COUNT(DISTINCT CONCAT(
-          COALESCE(d2.donor_email, '__NULL__'),
-          '_',
-          d2.donor_name
-        )) > 1
-      )
-      ORDER BY name_lower, d.donor_email, d.donor_name`,
+      `SELECT ng.name_lower, ng.donor_name, ng.donor_email,
+              ng.donation_count, ng.total_amount,
+              ng.first_donation, ng.last_donation
+      FROM (
+        SELECT
+          LOWER(d.donor_name) as name_lower,
+          d.donor_name,
+          d.donor_email,
+          COUNT(DISTINCT d.id) as donation_count,
+          SUM(d.amount) as total_amount,
+          MIN(d.created_at) as first_donation,
+          MAX(d.created_at) as last_donation
+        FROM donations d
+        JOIN square_connections sc ON d.organization_id = sc.organization_id
+        WHERE sc.merchant_id = ?
+          AND d.payment_status = 'COMPLETED'
+          AND d.donor_name IS NOT NULL
+        GROUP BY LOWER(d.donor_name), d.donor_name, d.donor_email
+      ) ng
+      INNER JOIN (
+        SELECT name_lower
+        FROM (
+          SELECT LOWER(d2.donor_name) as name_lower
+          FROM donations d2
+          JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+          WHERE sc2.merchant_id = ?
+            AND d2.payment_status = 'COMPLETED'
+            AND d2.donor_name IS NOT NULL
+          GROUP BY LOWER(d2.donor_name), d2.donor_name, d2.donor_email
+        ) name_groups
+        GROUP BY name_lower
+        HAVING COUNT(*) > 1
+      ) dn ON ng.name_lower = dn.name_lower
+      ORDER BY ng.name_lower, ng.donor_email, ng.donor_name`,
       [merchant_id, merchant_id]
     )
 
