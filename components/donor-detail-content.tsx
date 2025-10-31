@@ -95,13 +95,19 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
   const fetchDonorDetails = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/dashboard/donors/${encodeURIComponent(donorEmail)}`)
+      const response = await fetch(`/api/dashboard/donors/${encodeURIComponent(donorEmail)}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
 
       if (!response.ok) {
         throw new Error('Failed to fetch donor details')
       }
 
       const data = await response.json()
+      console.log('Fetched donor data:', data.donor)
       setDonor(data.donor)
       setDonationHistory(data.donation_history)
 
@@ -159,16 +165,22 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
       if (!response.ok) throw new Error('Failed to update donor')
 
       const data = await response.json()
+      console.log('Update response:', data)
 
       // Construct new donor identifier (email or name_without_email_<name>)
       const newDonorIdentifier = data.new_email || `name_without_email_${data.new_name}`
+      console.log('Old identifier:', donorEmail)
+      console.log('New identifier:', newDonorIdentifier)
 
       // Check if the identifier changed
       if (newDonorIdentifier === donorEmail) {
         // Identifier hasn't changed (e.g., only name was updated), just refetch data
+        console.log('Identifier unchanged, refetching data...')
         await fetchDonorDetails()
+        console.log('Data refetched successfully')
       } else {
         // Identifier changed, navigate to the new URL
+        console.log('Identifier changed, navigating to new URL...')
         if (onDonorUpdated) {
           onDonorUpdated(newDonorIdentifier)
         } else {
