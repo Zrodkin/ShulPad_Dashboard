@@ -77,32 +77,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get all organization IDs for this merchant to ensure we only update their donations
-    const orgResult = await db.execute(
-      `SELECT id FROM organizations WHERE square_merchant_id = ?`,
-      [merchant_id]
-    )
-
-    const orgIds = orgResult.rows.map((row: any) => row.id)
-
-    if (orgIds.length === 0) {
-      return NextResponse.json(
-        { error: 'No organizations found for this merchant' },
-        { status: 404 }
-      )
-    }
-
-    // Build the organization filter
-    const orgPlaceholders = orgIds.map(() => '?').join(',')
-
     // Count donations that will be updated (for logging/verification)
+    // Use JOIN with square_connections to ensure we only affect this merchant's donations
     const countResult = await db.execute(
       `SELECT COUNT(*) as count
        FROM donations d
-       WHERE d.organization_id IN (${orgPlaceholders})
+       JOIN square_connections sc ON d.organization_id = sc.organization_id
+       WHERE sc.merchant_id = ?
          AND d.payment_status = 'COMPLETED'
          AND (${conditions.join(' OR ')})`,
-      [...orgIds, ...params]
+      [merchant_id, ...params]
     )
 
     const donationsToUpdate = parseInt(countResult.rows[0].count)
@@ -115,15 +99,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Update all matching donations to use the primary donor's information
+    // Use JOIN with square_connections to ensure we only update this merchant's donations
     const updateResult = await db.execute(
       `UPDATE donations d
+       JOIN square_connections sc ON d.organization_id = sc.organization_id
        SET d.donor_email = ?,
            d.donor_name = ?,
            d.updated_at = NOW()
-       WHERE d.organization_id IN (${orgPlaceholders})
+       WHERE sc.merchant_id = ?
          AND d.payment_status = 'COMPLETED'
          AND (${conditions.join(' OR ')})`,
-      [primary_donor.email, primary_donor.name, ...orgIds, ...params]
+      [primary_donor.email, primary_donor.name, merchant_id, ...params]
     )
 
     // Get updated statistics for the merged donor
