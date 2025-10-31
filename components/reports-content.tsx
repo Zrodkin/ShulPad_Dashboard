@@ -43,6 +43,7 @@ export function ReportsContent() {
     totalAmount: 0,
     totalCount: 0,
     averageAmount: 0,
+    todayDonations: 0,
     uniqueDonors: 0
   })
 
@@ -96,10 +97,18 @@ export function ReportsContent() {
         const total = data.donations.reduce((sum: number, d: Donation) => sum + d.amount, 0)
         const uniqueEmails = new Set(data.donations.map((d: Donation) => d.donor_email).filter(Boolean))
 
+        // Calculate today's donations
+        const todayDate = new Date().toISOString().split('T')[0]
+        const todayCount = data.donations.filter((d: Donation) => {
+          const donationDate = new Date(d.created_at).toISOString().split('T')[0]
+          return donationDate === todayDate
+        }).length
+
         setStats({
           totalAmount: total,
           totalCount: data.donations.length,
           averageAmount: data.donations.length > 0 ? total / data.donations.length : 0,
+          todayDonations: todayCount,
           uniqueDonors: uniqueEmails.size
         })
 
@@ -143,7 +152,7 @@ export function ReportsContent() {
       ["Summary"],
       ["Total Amount", stats.totalAmount.toFixed(2)],
       ["Total Donations", stats.totalCount.toString()],
-      ["Average Donation", stats.averageAmount.toFixed(2)],
+      ["Today's Donations", stats.todayDonations.toString()],
       ["Unique Donors", stats.uniqueDonors.toString()],
     ]
 
@@ -266,15 +275,15 @@ export function ReportsContent() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Donation</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Today's Donations</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${loading ? '...' : stats.averageAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {loading ? '...' : stats.todayDonations.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Per transaction
+              Donations today
             </p>
           </CardContent>
         </Card>
@@ -305,7 +314,7 @@ export function ReportsContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={300} key={`${dateRange}-${customStartDate}-${customEndDate}-${dailyData.length}`}>
               <LineChart data={dailyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
@@ -341,6 +350,9 @@ export function ReportsContent() {
                   strokeWidth={2}
                   dot={{ fill: "hsl(var(--primary))", r: 4 }}
                   activeDot={{ r: 6 }}
+                  isAnimationActive={true}
+                  animationDuration={1500}
+                  animationEasing="ease-in-out"
                 />
               </LineChart>
             </ResponsiveContainer>
