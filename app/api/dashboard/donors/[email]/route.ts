@@ -38,33 +38,68 @@ export async function GET(
     }
 
     // Get donor summary statistics across all merchant organizations
+    // Include both donations table and receipt_log table
     // For email lookups: aggregate ALL donations for that email regardless of name
     // For name-only lookups: keep grouping by name
-    const groupByClause = donorIdentifier.startsWith('name_without_email_')
-      ? 'GROUP BY d.donor_email, d.donor_name'
-      : 'GROUP BY d.donor_email'
-
     const statsResult = await db.execute(
       `SELECT
-        d.donor_email,
+        donor_email,
         COALESCE(
-          MAX(CASE WHEN d.donor_name IS NOT NULL AND d.donor_name != '' THEN d.donor_name END),
+          MAX(CASE WHEN donor_name IS NOT NULL AND donor_name != '' AND donor_name != 'Anonymous Donor' THEN donor_name END),
           'Anonymous Donor'
         ) as donor_name,
-        COUNT(d.id) as donation_count,
-        SUM(d.amount) as total_donated,
-        AVG(d.amount) as average_donation,
-        MIN(d.created_at) as first_donation,
-        MAX(d.created_at) as last_donation,
-        SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
-        SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
-      FROM donations d
-      JOIN square_connections sc ON d.organization_id = sc.organization_id
-      WHERE sc.merchant_id = ?
-        ${whereClause}
-        AND d.payment_status = 'COMPLETED'
-      ${groupByClause}`,
-      queryParams
+        SUM(donation_count) as donation_count,
+        SUM(total_donated) as total_donated,
+        AVG(average_donation) as average_donation,
+        MIN(first_donation) as first_donation,
+        MAX(last_donation) as last_donation,
+        SUM(receipts_sent) as receipts_sent,
+        SUM(recurring_donations) as recurring_donations
+      FROM (
+        SELECT
+          d.donor_email,
+          d.donor_name,
+          COUNT(d.id) as donation_count,
+          SUM(d.amount) as total_donated,
+          AVG(d.amount) as average_donation,
+          MIN(d.created_at) as first_donation,
+          MAX(d.created_at) as last_donation,
+          SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
+          SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
+        FROM donations d
+        JOIN square_connections sc ON d.organization_id = sc.organization_id
+        WHERE sc.merchant_id = ?
+          ${whereClause}
+          AND d.payment_status = 'COMPLETED'
+        GROUP BY d.donor_email, d.donor_name
+
+        UNION ALL
+
+        SELECT
+          rl.donor_email,
+          'Anonymous Donor' as donor_name,
+          COUNT(rl.id) as donation_count,
+          SUM(rl.amount) as total_donated,
+          AVG(rl.amount) as average_donation,
+          MIN(rl.requested_at) as first_donation,
+          MAX(rl.requested_at) as last_donation,
+          COUNT(rl.id) as receipts_sent,
+          0 as recurring_donations
+        FROM receipt_log rl
+        JOIN square_connections sc ON rl.organization_id = sc.organization_id
+        WHERE sc.merchant_id = ?
+          AND rl.donor_email = ?
+          AND rl.delivery_status = 'sent'
+          AND rl.transaction_id NOT IN (
+            SELECT d2.payment_id FROM donations d2
+            JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+            WHERE sc2.merchant_id = ?
+          )
+        GROUP BY rl.donor_email
+      ) combined`,
+      donorIdentifier.startsWith('name_without_email_')
+        ? queryParams
+        : [merchant_id, donorIdentifier, merchant_id, donorIdentifier, merchant_id]
     )
 
     if (statsResult.rows.length === 0) {
@@ -74,26 +109,66 @@ export async function GET(
     const donorStats = statsResult.rows[0]
 
     // Get donation history across all merchant organizations
+    // Include both donations table and receipt_log table
     const historyResult = await db.execute(
       `SELECT
-        d.id,
-        d.amount,
-        d.currency,
-        d.payment_id,
-        d.square_order_id,
-        d.is_recurring,
-        d.is_custom_amount,
-        d.donation_type,
-        d.receipt_sent,
-        d.created_at
-      FROM donations d
-      JOIN square_connections sc ON d.organization_id = sc.organization_id
-      WHERE sc.merchant_id = ?
-        ${whereClause}
-        AND d.payment_status = 'COMPLETED'
-      ORDER BY d.created_at DESC
+        id,
+        amount,
+        currency,
+        payment_id,
+        square_order_id,
+        is_recurring,
+        is_custom_amount,
+        donation_type,
+        receipt_sent,
+        created_at
+      FROM (
+        SELECT
+          d.id,
+          d.amount,
+          d.currency,
+          d.payment_id,
+          d.square_order_id,
+          d.is_recurring,
+          d.is_custom_amount,
+          d.donation_type,
+          d.receipt_sent,
+          d.created_at
+        FROM donations d
+        JOIN square_connections sc ON d.organization_id = sc.organization_id
+        WHERE sc.merchant_id = ?
+          ${whereClause}
+          AND d.payment_status = 'COMPLETED'
+
+        UNION ALL
+
+        SELECT
+          rl.id,
+          rl.amount,
+          'USD' as currency,
+          rl.transaction_id as payment_id,
+          rl.order_id as square_order_id,
+          0 as is_recurring,
+          0 as is_custom_amount,
+          'one_time' as donation_type,
+          1 as receipt_sent,
+          rl.requested_at as created_at
+        FROM receipt_log rl
+        JOIN square_connections sc ON rl.organization_id = sc.organization_id
+        WHERE sc.merchant_id = ?
+          AND rl.donor_email = ?
+          AND rl.delivery_status = 'sent'
+          AND rl.transaction_id NOT IN (
+            SELECT d2.payment_id FROM donations d2
+            JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+            WHERE sc2.merchant_id = ?
+          )
+      ) combined
+      ORDER BY created_at DESC
       LIMIT 50`,
-      queryParams
+      donorIdentifier.startsWith('name_without_email_')
+        ? queryParams
+        : [merchant_id, donorIdentifier, merchant_id, donorIdentifier, merchant_id]
     )
 
     const donationHistory = historyResult.rows.map((row: any) => ({
