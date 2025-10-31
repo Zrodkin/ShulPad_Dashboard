@@ -38,10 +38,15 @@ export async function GET(
     }
 
     // Get donor summary statistics across all merchant organizations
+    // When querying by email, aggregate all donations regardless of name variations
+    // Prioritize non-null names over null names
     const statsResult = await db.execute(
       `SELECT
         d.donor_email,
-        COALESCE(d.donor_name, 'Anonymous Donor') as donor_name,
+        COALESCE(
+          MAX(CASE WHEN d.donor_name IS NOT NULL THEN d.donor_name END),
+          'Anonymous Donor'
+        ) as donor_name,
         COUNT(d.id) as donation_count,
         SUM(d.amount) as total_donated,
         AVG(d.amount) as average_donation,
@@ -54,7 +59,7 @@ export async function GET(
       WHERE sc.merchant_id = ?
         ${whereClause}
         AND d.payment_status = 'COMPLETED'
-      GROUP BY d.donor_email, d.donor_name`,
+      GROUP BY d.donor_email`,
       queryParams
     )
 

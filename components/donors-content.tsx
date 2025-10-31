@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Loader2 } from "lucide-react"
+import { Search, Loader2, Users } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DuplicateDonorsDialog } from "./duplicate-donors-dialog"
 
 interface Donor {
   donor_email: string | null
@@ -32,14 +33,16 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
   const [donors, setDonors] = useState<Donor[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<string>("total_donated")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-  
+
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+
+  const [showDuplicatesDialog, setShowDuplicatesDialog] = useState(false)
 
   useEffect(() => {
     fetchDonors()
@@ -107,6 +110,10 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">Donors</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">Manage your donor relationships and history</p>
         </div>
+        <Button onClick={() => setShowDuplicatesDialog(true)} variant="outline" className="gap-2">
+          <Users className="h-4 w-4" />
+          Manage Duplicates
+        </Button>
       </div>
 
       <Card>
@@ -266,6 +273,12 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
           )}
         </CardContent>
       </Card>
+
+      <DuplicateDonorsDialog
+        open={showDuplicatesDialog}
+        onOpenChange={setShowDuplicatesDialog}
+        onMergeComplete={fetchDonors}
+      />
     </div>
   )
 }
