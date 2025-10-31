@@ -408,7 +408,7 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
                           <div className="flex flex-col">
                             <span className="font-medium">{displayName}</span>
                             <span className="text-xs text-muted-foreground">
-                              {displayEmail} • {donor.donation_count} donations • ${donor.total_donated.toFixed(2)}
+                              {displayEmail} • {donor.donation_count} donations • ${Number(donor.total_donated).toFixed(2)}
                             </span>
                           </div>
                         </SelectItem>
