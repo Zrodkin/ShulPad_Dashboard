@@ -252,7 +252,10 @@ export async function GET(request: NextRequest) {
     const trendMap = new Map()
 
     donationsTrendResult.rows.forEach((row: any) => {
-      const dateStr = row.date.toISOString().split('T')[0]
+      // Handle date conversion - it might be a Date object, string, or need formatting
+      const dateStr = row.date instanceof Date
+        ? row.date.toISOString().split('T')[0]
+        : String(row.date).split('T')[0]
       trendMap.set(dateStr, {
         count: parseInt(row.count),
         total: parseFloat(row.total)
@@ -260,7 +263,10 @@ export async function GET(request: NextRequest) {
     })
 
     receiptLogTrendResult.rows.forEach((row: any) => {
-      const dateStr = row.date.toISOString().split('T')[0]
+      // Handle date conversion - it might be a Date object, string, or need formatting
+      const dateStr = row.date instanceof Date
+        ? row.date.toISOString().split('T')[0]
+        : String(row.date).split('T')[0]
       const existing = trendMap.get(dateStr) || { count: 0, total: 0 }
       trendMap.set(dateStr, {
         count: existing.count + parseInt(row.count),
