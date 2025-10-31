@@ -283,6 +283,40 @@ export async function GET(request: NextRequest) {
         break
       }
 
+      case 'recent_donations': {
+        // Recent donations across all merchant organizations
+        const limit = parseInt(searchParams.get('limit') || '10')
+
+        const result = await db.execute(
+          `SELECT
+            d.id,
+            COALESCE(d.donor_name, 'Anonymous') as donor_name,
+            d.donor_email,
+            d.amount,
+            d.created_at
+          FROM donations d
+          JOIN square_connections sc ON d.organization_id = sc.organization_id
+          WHERE sc.merchant_id = ?
+            AND d.payment_status = 'COMPLETED'
+            ${dateFilter}
+          ORDER BY d.created_at DESC
+          LIMIT ?`,
+          [merchant_id, ...dateParams, limit]
+        )
+
+        chartData = {
+          type: 'list',
+          data: result.rows.map((row: any) => ({
+            id: row.id,
+            donor_name: row.donor_name,
+            donor_email: row.donor_email,
+            amount: parseFloat(row.amount).toFixed(2),
+            created_at: row.created_at,
+          })),
+        }
+        break
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid chart type' }, { status: 400 })
     }

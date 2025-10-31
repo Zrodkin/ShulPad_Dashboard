@@ -43,7 +43,13 @@ export async function GET(request: NextRequest) {
     const statsResult = await db.execute(
       `SELECT
         COUNT(DISTINCT d.id) as total_donations,
-        COUNT(DISTINCT d.donor_email) as unique_donors,
+        COUNT(DISTINCT
+          CASE
+            WHEN d.donor_email IS NOT NULL THEN d.donor_email
+            WHEN d.donor_name IS NOT NULL AND d.donor_name != '' THEN CONCAT('name_', d.donor_name)
+            ELSE NULL
+          END
+        ) as unique_donors,
         COALESCE(SUM(d.amount), 0) as total_amount,
         COALESCE(AVG(d.amount), 0) as average_donation,
         COUNT(DISTINCT CASE WHEN d.is_recurring = 1 THEN d.id END) as recurring_donations,
@@ -52,6 +58,7 @@ export async function GET(request: NextRequest) {
       JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
+        AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
         ${dateFilter}`,
       [merchant_id]
     )
@@ -108,11 +115,11 @@ export async function GET(request: NextRequest) {
 
     // Calculate percentage changes
     const amountChange = previousStats.total_amount > 0
-      ? ((stats.total_amount - previousStats.total_amount) / previousStats.total_amount * 100).toFixed(1)
+      ? ((stats.total_amount - previousStats.total_amount) / previousStats.total_amount * 100)
       : 0
 
     const countChange = previousStats.total_donations > 0
-      ? ((stats.total_donations - previousStats.total_donations) / previousStats.total_donations * 100).toFixed(1)
+      ? ((stats.total_donations - previousStats.total_donations) / previousStats.total_donations * 100)
       : 0
 
     // Get recent donations trend (last 30 days, grouped by day) across all merchant organizations
@@ -143,8 +150,8 @@ export async function GET(request: NextRequest) {
         receipts_sent: parseInt(stats.receipts_sent),
       },
       changes: {
-        amount_change: parseFloat(amountChange),
-        count_change: parseFloat(countChange),
+        amount_change: parseFloat(amountChange.toFixed(1)),
+        count_change: parseFloat(countChange.toFixed(1)),
       },
       trend: trendResult.rows.map((row: any) => ({
         date: row.date,

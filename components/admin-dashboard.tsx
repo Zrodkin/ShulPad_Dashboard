@@ -125,7 +125,12 @@ export function AdminDashboard() {
           </div>
         </div>
 
-        {activeView === "dashboard" && <DashboardContentConnected onDonorClick={handleViewDonor} />}
+        {activeView === "dashboard" && (
+          <DashboardContentConnected
+            onDonorClick={handleViewDonor}
+            onNavigate={handleNavigate}
+          />
+        )}
         {activeView === "transactions" && <TransactionsContent onViewTransaction={handleViewTransaction} />}
         {activeView === "donors" && <DonorsContent onViewDonor={handleViewDonor} />}
         {activeView === "reports" && <ReportsContent />}

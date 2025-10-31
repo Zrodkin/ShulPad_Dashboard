@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, Users, Calendar } from "lucide-react"
 import { DonationChart } from "@/components/donation-chart"
-import { TopDonorsTable } from "@/components/top-donors-table"
+import { DonorsDonationsToggle } from "@/components/donors-donations-toggle"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -21,9 +21,10 @@ interface DashboardStats {
 
 interface DashboardContentProps {
   onDonorClick?: (email: string) => void
+  onNavigate?: (view: 'transactions' | 'donors') => void
 }
 
-export function DashboardContentConnected({ onDonorClick }: DashboardContentProps) {
+export function DashboardContentConnected({ onDonorClick, onNavigate }: DashboardContentProps) {
   const [timePeriod, setTimePeriod] = useState<"today" | "week" | "all">("all")
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [changes, setChanges] = useState<{ amount_change: number; count_change: number } | null>(null)
@@ -129,7 +130,10 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
           ))
         ) : stats ? (
           <>
-            <Card>
+            <Card
+              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => onNavigate?.('transactions')}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total Donations</CardTitle>
                 <DollarSign className="h-5 w-5 text-primary" />
@@ -144,18 +148,24 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
               </CardContent>
             </Card>
 
-            <Card>
+            <Card
+              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => onNavigate?.('donors')}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Donors</CardTitle>
                 <Users className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold text-foreground">{stats.unique_donors}</div>
-                <p className="text-xs text-muted-foreground mt-1">Unique donors</p>
+                <p className="text-xs text-muted-foreground mt-1">Total donors</p>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card
+              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => onNavigate?.('transactions')}
+            >
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Today's Donations</CardTitle>
                 <Calendar className="h-5 w-5 text-primary" />
@@ -172,7 +182,7 @@ export function DashboardContentConnected({ onDonorClick }: DashboardContentProp
       {/* Charts */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         <DonationChart period={timePeriod} />
-        <TopDonorsTable onDonorClick={onDonorClick} period={timePeriod} />
+        <DonorsDonationsToggle onDonorClick={onDonorClick} period={timePeriod} />
       </div>
 
       {/* Additional Stats Row */}
