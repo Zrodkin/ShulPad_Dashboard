@@ -97,7 +97,7 @@ export async function PATCH(
           affectedCount,
           session.merchant_name || session.email || 'Admin',
           session.email,
-          organization_id,
+          null, // organization_id set to NULL because it's a string, not an integer
           notes || `Donor information updated for ${affectedCount} transaction(s)`
         ]
       )

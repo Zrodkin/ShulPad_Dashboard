@@ -89,7 +89,7 @@ export async function PATCH(
           donor_name || null,
           session.merchant_name || session.email || 'Admin',
           session.email,
-          oldTransaction.organization_id,
+          null, // organization_id set to NULL because it's a string, not an integer
           notes || `Transaction ${id} donor info updated`
         ]
       )
@@ -114,7 +114,7 @@ export async function PATCH(
               donor_name || null,
               session.merchant_name || session.email || 'Admin',
               session.email,
-              oldTransaction.organization_id,
+              null, // organization_id set to NULL because it's a string, not an integer
               notes || `Transaction ${id} donor info updated`
             ]
           )
