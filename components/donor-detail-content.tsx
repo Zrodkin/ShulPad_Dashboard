@@ -159,8 +159,11 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: Do
 
       const data = await response.json()
 
-      // Refresh the page with new donor data
-      window.location.reload()
+      // Construct new donor identifier (email or name_without_email_<name>)
+      const newDonorIdentifier = data.new_email || `name_without_email_${data.new_name}`
+
+      // Redirect to the new donor identifier instead of just reloading
+      window.location.href = `/dashboard/donors/${encodeURIComponent(newDonorIdentifier)}`
     } catch (err) {
       console.error('Error updating donor:', err)
       alert('Failed to update donor information')
