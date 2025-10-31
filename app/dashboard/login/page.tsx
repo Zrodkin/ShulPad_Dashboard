@@ -17,13 +17,6 @@ function LoginPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  // State for animated circles
-  const [circles, setCircles] = useState([
-    { id: 1, top: 25, left: 25, opacity: 0.5, size: 32 },
-    { id: 2, top: 75, right: 25, opacity: 0.4, size: 24 },
-    { id: 3, top: 50, right: 33, opacity: 0.45, size: 16 }
-  ])
-
   useEffect(() => {
     // Check if already logged in
     checkSession()
@@ -34,51 +27,6 @@ function LoginPageContent() {
       setError(decodeURIComponent(urlError))
     }
   }, [searchParams])
-
-  // Animate circles with smooth, continuous movement
-  useEffect(() => {
-    const animateCircle = (index: number) => {
-      // Generate new position
-      const useLeft = Math.random() > 0.5
-      const newPosition: any = {
-        top: Math.random() * 80 + 10, // 10-90%
-        opacity: Math.random() * 0.3 + 0.3 // 0.3-0.6
-      }
-
-      if (useLeft) {
-        newPosition.left = Math.random() * 80 + 10
-        newPosition.right = undefined
-      } else {
-        newPosition.right = Math.random() * 80 + 10
-        newPosition.left = undefined
-      }
-
-      // First fade out while staying in place
-      setCircles(prev => prev.map((circle, i) =>
-        i === index ? { ...circle, opacity: 0 } : circle
-      ))
-
-      // After fade out completes, move to new position and fade back in
-      setTimeout(() => {
-        setCircles(prev => prev.map((circle, i) =>
-          i === index ? { ...circle, ...newPosition } : circle
-        ))
-      }, 1500) // Wait for fade out to complete
-    }
-
-    // Different intervals for each circle (varying durations for organic feel)
-    const intervals = [
-      setInterval(() => animateCircle(0), 8000),
-      setInterval(() => animateCircle(1), 7000),
-      setInterval(() => animateCircle(2), 9000)
-    ]
-
-    // Start at staggered times
-    setTimeout(() => animateCircle(1), 2000)
-    setTimeout(() => animateCircle(2), 4500)
-
-    return () => intervals.forEach(clearInterval)
-  }, [])
 
   const checkSession = async () => {
     try {
@@ -136,31 +84,6 @@ function LoginPageContent() {
           background: "rgba(0, 0, 0, 0.15)",
         }}
       ></div>
-
-      {/* Floating glass orbs for visual interest */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {circles.map((circle, index) => (
-          <div
-            key={circle.id}
-            className="absolute rounded-full"
-            style={{
-              top: `${circle.top}%`,
-              left: circle.left !== undefined ? `${circle.left}%` : undefined,
-              right: circle.right !== undefined ? `${circle.right}%` : undefined,
-              width: `${circle.size * 4}px`,
-              height: `${circle.size * 4}px`,
-              opacity: circle.opacity,
-              background: "rgba(255, 255, 255, 0.15)",
-              backdropFilter: "blur(20px) saturate(180%)",
-              border: "2px solid rgba(255, 255, 255, 0.3)",
-              boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
-              transition: "all 1.5s cubic-bezier(0.4, 0, 0.2, 1)",
-              transform: "translateZ(0)", // Enable GPU acceleration
-              willChange: "opacity, top, left, right",
-            }}
-          />
-        ))}
-      </div>
 
       <Card
         className="max-w-md hover-lift relative z-10 w-full"
