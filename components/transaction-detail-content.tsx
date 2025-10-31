@@ -59,7 +59,7 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editMode, setEditMode] = useState<'existing' | 'new'>('existing')
+  const [editMode, setEditMode] = useState<'edit' | 'existing' | 'new'>('existing')
   const [donors, setDonors] = useState<Donor[]>([])
   const [selectedDonorEmail, setSelectedDonorEmail] = useState('')
   const [newDonorName, setNewDonorName] = useState('')
@@ -102,8 +102,23 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
   }
 
   const handleEditDonor = () => {
+    if (!transaction) return
+
+    // Determine which mode to use based on existing donor info
+    const hasDonorInfo = transaction.donor_name || transaction.donor_email
+
+    if (hasDonorInfo) {
+      // Transaction already has donor info - use edit mode
+      setEditMode('edit')
+      setNewDonorName(transaction.donor_name || '')
+      setNewDonorEmail(transaction.donor_email || '')
+    } else {
+      // Transaction has no donor info - use associate/create mode
+      setEditMode('existing')
+      fetchDonors()
+    }
+
     setEditDialogOpen(true)
-    fetchDonors()
   }
 
   const handleSaveDonorUpdate = async () => {
@@ -124,7 +139,7 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
           donor_name = selectedDonor.donor_name
         }
       } else {
-        // Use new donor info
+        // Use new/edited donor info (both 'new' and 'edit' modes)
         donor_email = newDonorEmail || null
         donor_name = newDonorName
       }
@@ -369,26 +384,37 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Update Donor Information</DialogTitle>
+            <DialogTitle>
+              {editMode === 'edit' ? 'Edit Donor Information' : 'Update Donor Information'}
+            </DialogTitle>
             <DialogDescription>
-              Associate this transaction with an existing donor or create a new donor profile.
+              {editMode === 'edit'
+                ? 'Update the donor information for this transaction.'
+                : 'Associate this transaction with an existing donor or create a new donor profile.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Mode Selection */}
-            <div className="space-y-2">
-              <Label>Select Option</Label>
-              <Select value={editMode} onValueChange={(value: 'existing' | 'new') => setEditMode(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="existing">Associate with Existing Donor</SelectItem>
-                  <SelectItem value="new">Create New Donor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Mode Selection - Only show when not in edit mode */}
+            {editMode !== 'edit' && (
+              <div className="space-y-2">
+                <Label>Select Option</Label>
+                <Select value={editMode} onValueChange={(value: 'existing' | 'new') => {
+                  setEditMode(value)
+                  if (value === 'existing') {
+                    fetchDonors()
+                  }
+                }}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="existing">Associate with Existing Donor</SelectItem>
+                    <SelectItem value="new">Create New Donor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {editMode === 'existing' ? (
               /* Existing Donor Selection */
@@ -418,7 +444,7 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
                 </Select>
               </div>
             ) : (
-              /* New Donor Form */
+              /* Edit/New Donor Form - Used for both 'edit' and 'new' modes */
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="new-name">Donor Name *</Label>
@@ -459,7 +485,14 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
             <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSaveDonorUpdate} disabled={saving || (editMode === 'existing' && !selectedDonorEmail) || (editMode === 'new' && !newDonorName)}>
+            <Button
+              onClick={handleSaveDonorUpdate}
+              disabled={
+                saving ||
+                (editMode === 'existing' && !selectedDonorEmail) ||
+                ((editMode === 'new' || editMode === 'edit') && !newDonorName)
+              }
+            >
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
