@@ -21,10 +21,11 @@ interface DashboardStats {
 
 interface DashboardContentProps {
   onDonorClick?: (email: string) => void
+  onTransactionClick?: (transactionId: string) => void
   onNavigate?: (view: 'transactions' | 'donors') => void
 }
 
-export function DashboardContentConnected({ onDonorClick, onNavigate }: DashboardContentProps) {
+export function DashboardContentConnected({ onDonorClick, onTransactionClick, onNavigate }: DashboardContentProps) {
   const [timePeriod, setTimePeriod] = useState<"today" | "week" | "all">("today")
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [changes, setChanges] = useState<{ amount_change: number; count_change: number } | null>(null)
@@ -178,7 +179,7 @@ export function DashboardContentConnected({ onDonorClick, onNavigate }: Dashboar
       {/* Charts */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
         <DonationChart period={timePeriod} />
-        <DonorsDonationsToggle onDonorClick={onDonorClick} period={timePeriod} />
+        <DonorsDonationsToggle onDonorClick={onDonorClick} onTransactionClick={onTransactionClick} period={timePeriod} />
       </div>
 
       {/* Additional Stats Row */}

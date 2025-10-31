@@ -128,6 +128,7 @@ export function AdminDashboard() {
         {activeView === "dashboard" && (
           <DashboardContentConnected
             onDonorClick={handleViewDonor}
+            onTransactionClick={handleViewTransaction}
             onNavigate={handleNavigate}
           />
         )}

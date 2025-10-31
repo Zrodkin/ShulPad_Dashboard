@@ -324,7 +324,6 @@ export async function GET(request: NextRequest) {
       case 'recent_donations': {
         // Recent donations across all merchant organizations
         // Include both donations table and receipt_log table
-        // Exclude donors with no email AND no name
         const limit = parseInt(searchParams.get('limit') || '10')
 
         const result = await db.execute(
@@ -340,7 +339,8 @@ export async function GET(request: NextRequest) {
               d.id,
               CASE
                 WHEN d.donor_email IS NOT NULL THEN d.donor_email
-                ELSE CONCAT('name_without_email_', d.donor_name)
+                WHEN d.donor_name IS NOT NULL AND d.donor_name != '' THEN CONCAT('name_without_email_', d.donor_name)
+                ELSE NULL
               END as donor_identifier,
               COALESCE(d.donor_name, 'Anonymous') as donor_name,
               d.donor_email,
@@ -350,7 +350,6 @@ export async function GET(request: NextRequest) {
             JOIN square_connections sc ON d.organization_id = sc.organization_id
             WHERE sc.merchant_id = ?
               AND d.payment_status = 'COMPLETED'
-              AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
               ${dateFilter}
 
             UNION ALL
@@ -366,7 +365,6 @@ export async function GET(request: NextRequest) {
             JOIN square_connections sc ON rl.organization_id = sc.organization_id
             WHERE sc.merchant_id = ?
               AND rl.delivery_status = 'sent'
-              AND rl.donor_email IS NOT NULL
               ${dateFilter.replace('d.', 'rl.').replace('created_at', 'requested_at')}
               AND rl.transaction_id NOT IN (
                 SELECT d2.payment_id FROM donations d2
