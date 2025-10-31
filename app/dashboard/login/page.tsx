@@ -178,7 +178,14 @@ function LoginPageContent() {
               boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(255, 255, 255, 0.3)",
             }}
           >
-            <Image src="/shulpad-logo.png" alt="ShulPad Logo" fill className="object-cover" />
+            <Image
+              src="/shulpad-logo.png"
+              alt="ShulPad Logo"
+              fill
+              className="object-cover"
+              priority
+              sizes="96px"
+            />
           </div>
         </div>
 
