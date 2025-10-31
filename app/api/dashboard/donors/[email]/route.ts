@@ -96,7 +96,8 @@ export async function GET(
             WHERE sc2.merchant_id = ?
           )
         GROUP BY rl.donor_email
-      ) combined`,
+      ) combined
+      GROUP BY donor_email`,
       donorIdentifier.startsWith('name_without_email_')
         ? queryParams
         : [merchant_id, donorIdentifier, merchant_id, donorIdentifier, merchant_id]
