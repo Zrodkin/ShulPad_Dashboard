@@ -70,9 +70,10 @@ interface DonorDetailContentProps {
   donorEmail: string
   onBack: () => void
   onViewTransaction?: (transactionId: string) => void
+  onDonorUpdated?: (newDonorIdentifier: string) => void
 }
 
-export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: DonorDetailContentProps) {
+export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDonorUpdated }: DonorDetailContentProps) {
   const [donor, setDonor] = useState<Donor | null>(null)
   const [donationHistory, setDonationHistory] = useState<DonationHistory[]>([])
   const [changeHistory, setChangeHistory] = useState<DonorChange[]>([])
@@ -162,8 +163,19 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: Do
       // Construct new donor identifier (email or name_without_email_<name>)
       const newDonorIdentifier = data.new_email || `name_without_email_${data.new_name}`
 
-      // Redirect to the new donor identifier instead of just reloading
-      window.location.href = `/dashboard/donors/${encodeURIComponent(newDonorIdentifier)}`
+      // Check if the identifier changed
+      if (newDonorIdentifier === donorEmail) {
+        // Identifier hasn't changed (e.g., only name was updated), just refetch data
+        await fetchDonorDetails()
+      } else {
+        // Identifier changed, navigate to the new URL
+        if (onDonorUpdated) {
+          onDonorUpdated(newDonorIdentifier)
+        } else {
+          // Fallback to direct navigation if callback not provided
+          window.location.href = `/dashboard/donors/${encodeURIComponent(newDonorIdentifier)}`
+        }
+      }
     } catch (err) {
       console.error('Error updating donor:', err)
       alert('Failed to update donor information')
