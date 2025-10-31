@@ -25,7 +25,7 @@ interface DashboardContentProps {
 }
 
 export function DashboardContentConnected({ onDonorClick, onNavigate }: DashboardContentProps) {
-  const [timePeriod, setTimePeriod] = useState<"today" | "week" | "all">("all")
+  const [timePeriod, setTimePeriod] = useState<"today" | "week" | "all">("today")
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [changes, setChanges] = useState<{ amount_change: number; count_change: number } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -140,11 +140,7 @@ export function DashboardContentConnected({ onDonorClick, onNavigate }: Dashboar
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold text-foreground">${stats.total_amount}</div>
-                {changes && timePeriod !== 'all' && (
-                  <p className={`text-xs mt-1 ${changes.amount_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatChange(changes.amount_change)}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground mt-1">{stats.total_donations} donation{stats.total_donations !== 1 ? 's' : ''}</p>
               </CardContent>
             </Card>
 
