@@ -35,7 +35,7 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
   const [error, setError] = useState<string | null>(null)
   
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState<string>("total_donated")
+  const [sortBy, setSortBy] = useState<string>("last_donation")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   
   const [page, setPage] = useState(1)
