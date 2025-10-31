@@ -16,11 +16,16 @@ export default function DonorDetailPage() {
     router.push(`/dashboard/transactions/${transactionId}`)
   }
 
+  const handleDonorUpdated = (newDonorIdentifier: string) => {
+    router.push(`/dashboard/donors/${encodeURIComponent(newDonorIdentifier)}`)
+  }
+
   return (
     <DonorDetailContent
       donorEmail={donorEmail}
       onBack={handleBack}
       onViewTransaction={handleViewTransaction}
+      onDonorUpdated={handleDonorUpdated}
     />
   )
 }
