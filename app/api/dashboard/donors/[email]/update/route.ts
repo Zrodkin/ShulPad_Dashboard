@@ -57,7 +57,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'No transactions found for this donor' }, { status: 404 })
     }
 
-    // Update all transactions for this donor
+    // Update all transactions for this donor in the donations table
     const updateFields: string[] = []
     const updateParams: any[] = []
 
@@ -80,6 +80,32 @@ export async function PATCH(
        WHERE ${whereClause}`,
       updateParams
     )
+
+    // Also update receipt_log table if this donor has an email (receipt_log only has email donors)
+    if (!isAnonymous) {
+      const receiptUpdateFields: string[] = []
+      const receiptUpdateParams: any[] = []
+
+      if (new_email !== undefined) {
+        receiptUpdateFields.push('donor_email = ?')
+        receiptUpdateParams.push(new_email || null)
+      }
+
+      if (new_name !== undefined) {
+        receiptUpdateFields.push('donor_name = ?')
+        receiptUpdateParams.push(new_name)
+      }
+
+      if (receiptUpdateFields.length > 0) {
+        receiptUpdateParams.push(oldEmail)
+        await db.execute(
+          `UPDATE receipt_log
+           SET ${receiptUpdateFields.join(', ')}
+           WHERE LOWER(donor_email) = LOWER(?)`,
+          receiptUpdateParams
+        )
+      }
+    }
 
     // Record the change in donor_changes table
     try {
