@@ -10,5 +10,19 @@ export default function DashboardPage() {
     router.push(`/dashboard/donors/${encodeURIComponent(donorEmail)}`)
   }
 
-  return <DashboardContentConnected onDonorClick={handleDonorClick} />
+  const handleTransactionClick = (transactionId: string) => {
+    router.push(`/dashboard/transactions/${transactionId}`)
+  }
+
+  const handleNavigate = (view: 'transactions' | 'donors') => {
+    router.push(`/dashboard/${view}`)
+  }
+
+  return (
+    <DashboardContentConnected
+      onDonorClick={handleDonorClick}
+      onTransactionClick={handleTransactionClick}
+      onNavigate={handleNavigate}
+    />
+  )
 }

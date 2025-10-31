@@ -40,7 +40,9 @@ export async function GET(
     // Get donor summary statistics across all merchant organizations
     // Include both donations table and receipt_log table
     // For email lookups: aggregate ALL donations for that email regardless of name
-    // For name-only lookups: keep grouping by name
+    // For name-only lookups: keep grouping by name (no receipt_log since no email)
+    const isAnonymous = donorIdentifier.startsWith('name_without_email_')
+
     const statsResult = await db.execute(
       `SELECT
         donor_email,
@@ -72,7 +74,7 @@ export async function GET(
           ${whereClause}
           AND d.payment_status = 'COMPLETED'
         GROUP BY d.donor_email, d.donor_name
-
+        ${isAnonymous ? '' : `
         UNION ALL
 
         SELECT
@@ -95,10 +97,10 @@ export async function GET(
             JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
             WHERE sc2.merchant_id = ?
           )
-        GROUP BY rl.donor_email
+        GROUP BY rl.donor_email`}
       ) combined
       GROUP BY donor_email`,
-      donorIdentifier.startsWith('name_without_email_')
+      isAnonymous
         ? queryParams
         : [merchant_id, donorIdentifier, merchant_id, donorIdentifier, merchant_id]
     )
@@ -110,7 +112,7 @@ export async function GET(
     const donorStats = statsResult.rows[0]
 
     // Get donation history across all merchant organizations
-    // Include both donations table and receipt_log table
+    // Include both donations table and receipt_log table (only for email lookups)
     const historyResult = await db.execute(
       `SELECT
         id,
@@ -140,7 +142,7 @@ export async function GET(
         WHERE sc.merchant_id = ?
           ${whereClause}
           AND d.payment_status = 'COMPLETED'
-
+        ${isAnonymous ? '' : `
         UNION ALL
 
         SELECT
@@ -163,11 +165,11 @@ export async function GET(
             SELECT d2.payment_id FROM donations d2
             JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
             WHERE sc2.merchant_id = ?
-          )
+          )`}
       ) combined
       ORDER BY created_at DESC
       LIMIT 50`,
-      donorIdentifier.startsWith('name_without_email_')
+      isAnonymous
         ? queryParams
         : [merchant_id, donorIdentifier, merchant_id, donorIdentifier, merchant_id]
     )
