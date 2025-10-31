@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
         SELECT
           rl.donor_email as donor_identifier,
           rl.donor_email,
-          'Anonymous Donor' as donor_name,
+          COALESCE(rl.donor_name, 'Anonymous Donor') as donor_name,
           COUNT(rl.id) as donation_count,
           SUM(rl.amount) as total_donated,
           AVG(rl.amount) as average_donation,

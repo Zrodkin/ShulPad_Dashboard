@@ -79,7 +79,7 @@ export async function GET(
 
         SELECT
           rl.donor_email,
-          'Anonymous Donor' as donor_name,
+          COALESCE(rl.donor_name, 'Anonymous Donor') as donor_name,
           COUNT(rl.id) as donation_count,
           SUM(rl.amount) as total_donated,
           AVG(rl.amount) as average_donation,
