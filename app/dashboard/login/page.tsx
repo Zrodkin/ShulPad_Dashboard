@@ -17,6 +17,13 @@ function LoginPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
+  // State for animated circles
+  const [circles, setCircles] = useState([
+    { id: 1, top: 25, left: 25, opacity: 0.5, size: 32 },
+    { id: 2, top: 75, right: 25, opacity: 0.4, size: 24 },
+    { id: 3, top: 50, right: 33, opacity: 0.45, size: 16 }
+  ])
+
   useEffect(() => {
     // Check if already logged in
     checkSession()
@@ -27,6 +34,54 @@ function LoginPageContent() {
       setError(decodeURIComponent(urlError))
     }
   }, [searchParams])
+
+  // Animate circles to fade out and reappear at new positions
+  useEffect(() => {
+    const animateCircle = (index: number) => {
+      // Fade out
+      setCircles(prev => prev.map((circle, i) =>
+        i === index ? { ...circle, opacity: 0 } : circle
+      ))
+
+      // After fade out, change position and fade back in
+      setTimeout(() => {
+        setCircles(prev => prev.map((circle, i) => {
+          if (i === index) {
+            const useLeft = Math.random() > 0.5
+            const newCircle: any = {
+              ...circle,
+              top: Math.random() * 80 + 10, // 10-90%
+              opacity: Math.random() * 0.3 + 0.3 // 0.3-0.6
+            }
+
+            if (useLeft) {
+              newCircle.left = Math.random() * 80 + 10
+              delete newCircle.right
+            } else {
+              newCircle.right = Math.random() * 80 + 10
+              delete newCircle.left
+            }
+
+            return newCircle
+          }
+          return circle
+        }))
+      }, 1000) // Wait for fade out animation
+    }
+
+    // Stagger the animations for each circle
+    const intervals = [
+      setInterval(() => animateCircle(0), 6000),
+      setInterval(() => animateCircle(1), 6000),
+      setInterval(() => animateCircle(2), 6000)
+    ]
+
+    // Start at different times for variety
+    setTimeout(() => animateCircle(1), 2000)
+    setTimeout(() => animateCircle(2), 4000)
+
+    return () => intervals.forEach(clearInterval)
+  }, [])
 
   const checkSession = async () => {
     try {
@@ -87,33 +142,25 @@ function LoginPageContent() {
 
       {/* Floating glass orbs for visual interest */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div
-          className="absolute top-1/4 left-1/4 w-32 h-32 rounded-full opacity-50 animate-pulse"
-          style={{
-            background: "rgba(255, 255, 255, 0.15)",
-            backdropFilter: "blur(20px) saturate(180%)",
-            border: "2px solid rgba(255, 255, 255, 0.3)",
-            boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
-          }}
-        ></div>
-        <div
-          className="absolute top-3/4 right-1/4 w-24 h-24 rounded-full opacity-40 animate-pulse delay-1000"
-          style={{
-            background: "rgba(255, 255, 255, 0.15)",
-            backdropFilter: "blur(20px) saturate(180%)",
-            border: "2px solid rgba(255, 255, 255, 0.3)",
-            boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
-          }}
-        ></div>
-        <div
-          className="absolute top-1/2 right-1/3 w-16 h-16 rounded-full opacity-45 animate-pulse delay-500"
-          style={{
-            background: "rgba(255, 255, 255, 0.15)",
-            backdropFilter: "blur(20px) saturate(180%)",
-            border: "2px solid rgba(255, 255, 255, 0.3)",
-            boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
-          }}
-        ></div>
+        {circles.map((circle, index) => (
+          <div
+            key={circle.id}
+            className="absolute rounded-full"
+            style={{
+              top: `${circle.top}%`,
+              left: circle.left !== undefined ? `${circle.left}%` : undefined,
+              right: circle.right !== undefined ? `${circle.right}%` : undefined,
+              width: `${circle.size * 4}px`,
+              height: `${circle.size * 4}px`,
+              opacity: circle.opacity,
+              background: "rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(20px) saturate(180%)",
+              border: "2px solid rgba(255, 255, 255, 0.3)",
+              boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+              transition: "opacity 1s ease-in-out, top 0s linear 1s, left 0s linear 1s, right 0s linear 1s",
+            }}
+          />
+        ))}
       </div>
 
       <Card
