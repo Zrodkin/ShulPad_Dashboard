@@ -1,19 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Loader2 } from "lucide-react"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Routes that don't require authentication or sidebar
+  const publicRoutes = ['/dashboard/login', '/dashboard/admin']
+  const isPublicRoute = publicRoutes.includes(pathname || '')
+
   useEffect(() => {
-    checkAuthentication()
-  }, [])
+    if (!isPublicRoute) {
+      checkAuthentication()
+    } else {
+      setIsLoading(false)
+    }
+  }, [isPublicRoute])
 
   const checkAuthentication = async () => {
     try {
@@ -34,6 +43,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // For public routes, render without sidebar
+  if (isPublicRoute) {
+    return <>{children}</>
   }
 
   if (isLoading) {
