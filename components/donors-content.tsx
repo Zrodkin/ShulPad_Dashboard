@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DuplicateDonorsDialog } from "@/components/duplicate-donors-dialog"
 
 interface Donor {
   donor_email: string | null
@@ -107,6 +108,7 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground">Donors</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">Manage your donor relationships and history</p>
         </div>
+        <DuplicateDonorsDialog />
       </div>
 
       <Card>
