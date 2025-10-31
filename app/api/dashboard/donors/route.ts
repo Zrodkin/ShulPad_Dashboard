@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count of unique donors across all merchant organizations
+    // Exclude donors with no identifying information (both NULL email and NULL/empty name)
     const countResult = await db.execute(
       `SELECT COUNT(DISTINCT
          CASE
@@ -88,6 +89,7 @@ export async function GET(request: NextRequest) {
        JOIN square_connections sc ON d.organization_id = sc.organization_id
        WHERE ${orgCondition}
          AND d.payment_status = 'COMPLETED'
+         AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
          ${dateFilter}
          ${searchFilter}`,
       [...orgParams, ...dateParams, ...searchParams_arr]
@@ -119,6 +121,7 @@ export async function GET(request: NextRequest) {
     const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
 
     // Get aggregated donor data across all merchant organizations
+    // Exclude donors with no identifying information (both NULL email and NULL/empty name)
     const donorsResult = await db.execute(
       `SELECT
         COALESCE(d.donor_email, CONCAT('anonymous_', MIN(d.id))) as donor_identifier,
@@ -137,6 +140,7 @@ export async function GET(request: NextRequest) {
       JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE ${orgCondition}
         AND d.payment_status = 'COMPLETED'
+        AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
         ${dateFilter}
         ${searchFilter}
       GROUP BY d.donor_email, d.donor_name
@@ -179,6 +183,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(totalCount / limit)
 
     // Get summary statistics across all merchant organizations
+    // Exclude donors with no identifying information (both NULL email and NULL/empty name)
     const statsResult = await db.execute(
       `SELECT
         COUNT(DISTINCT d.donor_email) as unique_donors_with_email,
@@ -190,6 +195,7 @@ export async function GET(request: NextRequest) {
       JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE ${orgCondition}
         AND d.payment_status = 'COMPLETED'
+        AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
         ${dateFilter}`,
       [...orgParams, ...dateParams]
     )
