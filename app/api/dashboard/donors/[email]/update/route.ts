@@ -98,12 +98,18 @@ export async function PATCH(
 
       if (receiptUpdateFields.length > 0) {
         receiptUpdateParams.push(oldEmail)
-        await db.execute(
+        console.log('Updating receipt_log for email:', oldEmail)
+        console.log('Update fields:', receiptUpdateFields)
+        console.log('Update params:', receiptUpdateParams)
+
+        const receiptResult = await db.execute(
           `UPDATE receipt_log
            SET ${receiptUpdateFields.join(', ')}
            WHERE LOWER(donor_email) = LOWER(?)`,
           receiptUpdateParams
         )
+
+        console.log('Receipt_log rows affected:', receiptResult.rowsAffected || 0)
       }
     }
 
