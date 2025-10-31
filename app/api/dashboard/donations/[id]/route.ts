@@ -65,7 +65,7 @@ export async function GET(
           rl.organization_id,
           rl.amount,
           'USD' as currency,
-          NULL as donor_name,
+          rl.donor_name,
           rl.donor_email,
           rl.transaction_id as payment_id,
           rl.order_id as square_order_id,
