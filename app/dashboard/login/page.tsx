@@ -35,50 +35,47 @@ function LoginPageContent() {
     }
   }, [searchParams])
 
-  // Animate circles to fade out and reappear at new positions
+  // Animate circles with smooth, continuous movement
   useEffect(() => {
     const animateCircle = (index: number) => {
-      // Fade out
+      // Generate new position
+      const useLeft = Math.random() > 0.5
+      const newPosition: any = {
+        top: Math.random() * 80 + 10, // 10-90%
+        opacity: Math.random() * 0.3 + 0.3 // 0.3-0.6
+      }
+
+      if (useLeft) {
+        newPosition.left = Math.random() * 80 + 10
+        newPosition.right = undefined
+      } else {
+        newPosition.right = Math.random() * 80 + 10
+        newPosition.left = undefined
+      }
+
+      // First fade out while staying in place
       setCircles(prev => prev.map((circle, i) =>
         i === index ? { ...circle, opacity: 0 } : circle
       ))
 
-      // After fade out, change position and fade back in
+      // After fade out completes, move to new position and fade back in
       setTimeout(() => {
-        setCircles(prev => prev.map((circle, i) => {
-          if (i === index) {
-            const useLeft = Math.random() > 0.5
-            const newCircle: any = {
-              ...circle,
-              top: Math.random() * 80 + 10, // 10-90%
-              opacity: Math.random() * 0.3 + 0.3 // 0.3-0.6
-            }
-
-            if (useLeft) {
-              newCircle.left = Math.random() * 80 + 10
-              delete newCircle.right
-            } else {
-              newCircle.right = Math.random() * 80 + 10
-              delete newCircle.left
-            }
-
-            return newCircle
-          }
-          return circle
-        }))
-      }, 1000) // Wait for fade out animation
+        setCircles(prev => prev.map((circle, i) =>
+          i === index ? { ...circle, ...newPosition } : circle
+        ))
+      }, 1500) // Wait for fade out to complete
     }
 
-    // Stagger the animations for each circle
+    // Different intervals for each circle (varying durations for organic feel)
     const intervals = [
-      setInterval(() => animateCircle(0), 6000),
-      setInterval(() => animateCircle(1), 6000),
-      setInterval(() => animateCircle(2), 6000)
+      setInterval(() => animateCircle(0), 8000),
+      setInterval(() => animateCircle(1), 7000),
+      setInterval(() => animateCircle(2), 9000)
     ]
 
-    // Start at different times for variety
+    // Start at staggered times
     setTimeout(() => animateCircle(1), 2000)
-    setTimeout(() => animateCircle(2), 4000)
+    setTimeout(() => animateCircle(2), 4500)
 
     return () => intervals.forEach(clearInterval)
   }, [])
@@ -157,7 +154,9 @@ function LoginPageContent() {
               backdropFilter: "blur(20px) saturate(180%)",
               border: "2px solid rgba(255, 255, 255, 0.3)",
               boxShadow: "0 8px 32px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
-              transition: "opacity 1s ease-in-out, top 0s linear 1s, left 0s linear 1s, right 0s linear 1s",
+              transition: "all 1.5s cubic-bezier(0.4, 0, 0.2, 1)",
+              transform: "translateZ(0)", // Enable GPU acceleration
+              willChange: "opacity, top, left, right",
             }}
           />
         ))}
