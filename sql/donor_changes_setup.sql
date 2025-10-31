@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS donor_changes (
   new_name VARCHAR(255),
 
   -- Change metadata
-  change_type ENUM('update', 'merge', 'split') NOT NULL DEFAULT 'update',
+  change_type ENUM('update', 'merge', 'split', 'transaction_update') NOT NULL DEFAULT 'update',
   affected_transaction_count INT DEFAULT 0,
 
   -- Who made the change
