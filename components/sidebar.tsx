@@ -1,6 +1,5 @@
 "use client"
 
-import type { NavigationItem } from "@/components/admin-dashboard"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -16,27 +15,27 @@ import {
   User,
 } from "lucide-react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 
 interface SidebarProps {
-  activeView: NavigationItem
-  onNavigate: (view: NavigationItem) => void
   isMobileOpen: boolean
   onMobileClose: () => void
 }
 
 const navigationItems = [
-  { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
-  { id: "transactions" as const, label: "Transactions", icon: Receipt },
-  { id: "donors" as const, label: "Donors", icon: Users },
-  { id: "reports" as const, label: "Reports", icon: BarChart3 },
-  { id: "settings" as const, label: "Settings", icon: Settings },
-  { id: "help" as const, label: "Help", icon: HelpCircle },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+  { id: "transactions", label: "Transactions", icon: Receipt, href: "/dashboard/transactions" },
+  { id: "donors", label: "Donors", icon: Users, href: "/dashboard/donors" },
+  { id: "reports", label: "Reports", icon: BarChart3, href: "/dashboard/reports" },
+  { id: "settings", label: "Settings", icon: Settings, href: "/dashboard/settings" },
+  { id: "help", label: "Help", icon: HelpCircle, href: "/dashboard/help" },
 ]
 
-export function Sidebar({ activeView, onNavigate, isMobileOpen, onMobileClose }: SidebarProps) {
+export function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [userEmail, setUserEmail] = useState<string>("")
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
@@ -119,22 +118,23 @@ export function Sidebar({ activeView, onNavigate, isMobileOpen, onMobileClose }:
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navigationItems.map((item) => {
             const Icon = item.icon
-            const isActive = activeView === item.id
+            const isActive = pathname === item.href ||
+              (item.href !== "/dashboard" && pathname?.startsWith(item.href))
 
             return (
-              <Button
-                key={item.id}
-                variant={isActive ? "secondary" : "ghost"}
-                className={`w-full justify-start gap-3 ${
-                  isActive
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
-                onClick={() => onNavigate(item.id)}
-              >
-                <Icon className="h-5 w-5" />
-                {item.label}
-              </Button>
+              <Link key={item.id} href={item.href} onClick={onMobileClose}>
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={`w-full justify-start gap-3 ${
+                    isActive
+                      ? "bg-accent text-accent-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {item.label}
+                </Button>
+              </Link>
             )
           })}
         </nav>
