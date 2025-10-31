@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
       'PAYMENTS_READ',
       'CUSTOMERS_READ',
       'ORDERS_READ',
-      'SUBSCRIPTIONS_READ'
+      'SUBSCRIPTIONS_READ',
+      'EMPLOYEES_READ'
     ]
 
     const params = new URLSearchParams({
