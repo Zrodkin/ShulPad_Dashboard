@@ -4,10 +4,27 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Mail, Calendar, DollarSign, TrendingUp, Loader2 } from "lucide-react"
+import { ArrowLeft, Mail, Calendar, DollarSign, TrendingUp, Loader2, Edit, History, RotateCcw, AlertCircle } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
 
 interface DonationHistory {
   id: number
@@ -34,6 +51,21 @@ interface Donor {
   recurring_donations: number
 }
 
+interface DonorChange {
+  id: number
+  old_email: string | null
+  old_name: string | null
+  new_email: string | null
+  new_name: string | null
+  change_type: string
+  affected_transaction_count: number
+  changed_by: string
+  changed_at: string
+  is_reverted: boolean
+  reverted_at: string | null
+  notes: string | null
+}
+
 interface DonorDetailContentProps {
   donorEmail: string
   onBack: () => void
@@ -43,8 +75,17 @@ interface DonorDetailContentProps {
 export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: DonorDetailContentProps) {
   const [donor, setDonor] = useState<Donor | null>(null)
   const [donationHistory, setDonationHistory] = useState<DonationHistory[]>([])
+  const [changeHistory, setChangeHistory] = useState<DonorChange[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
+  const [editedName, setEditedName] = useState('')
+  const [editedEmail, setEditedEmail] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [reverting, setReverting] = useState<number | null>(null)
 
   useEffect(() => {
     fetchDonorDetails()
@@ -54,7 +95,7 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: Do
     try {
       setLoading(true)
       const response = await fetch(`/api/dashboard/donors/${encodeURIComponent(donorEmail)}`)
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch donor details')
       }
@@ -62,11 +103,96 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: Do
       const data = await response.json()
       setDonor(data.donor)
       setDonationHistory(data.donation_history)
+
+      // Fetch change history
+      fetchChangeHistory()
     } catch (err: any) {
       console.error('Error fetching donor:', err)
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchChangeHistory = async () => {
+    try {
+      const response = await fetch(`/api/dashboard/donors/${encodeURIComponent(donorEmail)}/history`)
+      if (response.ok) {
+        const data = await response.json()
+        setChangeHistory(data.history || [])
+      }
+    } catch (err) {
+      console.error('Error fetching change history:', err)
+    }
+  }
+
+  const handleEditClick = () => {
+    if (donor) {
+      setEditedName(donor.name)
+      setEditedEmail(donor.email)
+      setNotes('')
+      setEditDialogOpen(true)
+    }
+  }
+
+  const handleEditSubmit = () => {
+    setEditDialogOpen(false)
+    setConfirmDialogOpen(true)
+  }
+
+  const handleConfirmEdit = async () => {
+    if (!donor) return
+
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/dashboard/donors/${encodeURIComponent(donorEmail)}/update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          new_email: editedEmail || null,
+          new_name: editedName,
+          notes
+        })
+      })
+
+      if (!response.ok) throw new Error('Failed to update donor')
+
+      const data = await response.json()
+
+      // Refresh the page with new donor data
+      window.location.reload()
+    } catch (err) {
+      console.error('Error updating donor:', err)
+      alert('Failed to update donor information')
+    } finally {
+      setSaving(false)
+      setConfirmDialogOpen(false)
+    }
+  }
+
+  const handleRevertChange = async (changeId: number) => {
+    if (!confirm('Are you sure you want to revert this change? This will update all affected transactions.')) {
+      return
+    }
+
+    setReverting(changeId)
+    try {
+      const response = await fetch(`/api/dashboard/donors/changes/${changeId}/revert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: 'Reverted via donor profile' })
+      })
+
+      if (!response.ok) throw new Error('Failed to revert change')
+
+      // Refresh data
+      fetchDonorDetails()
+      alert('Change reverted successfully')
+    } catch (err) {
+      console.error('Error reverting change:', err)
+      alert('Failed to revert change')
+    } finally {
+      setReverting(null)
     }
   }
 
@@ -123,25 +249,39 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: Do
       {/* Donor Header */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold text-foreground">{donor.name}</h2>
-              <div className="flex items-center gap-2 mt-1 text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                <span>{donor.email}</span>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h2 className="text-2xl font-semibold text-foreground">{donor.name}</h2>
+                <div className="flex items-center gap-2 mt-1 text-muted-foreground">
+                  <Mail className="h-4 w-4" />
+                  <span>{donor.email}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {donor.recurring_donations > 0 && (
+                  <Badge variant="secondary">Recurring Donor</Badge>
+                )}
+                {parseFloat(donor.total_donated) >= 1000 && (
+                  <Badge variant="default">Major Donor</Badge>
+                )}
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {donor.recurring_donations > 0 && (
-                <Badge variant="secondary">Recurring Donor</Badge>
-              )}
-              {parseFloat(donor.total_donated) >= 1000 && (
-                <Badge variant="default">Major Donor</Badge>
+              <Button variant="outline" size="sm" onClick={handleEditClick} className="gap-2">
+                <Edit className="h-4 w-4" />
+                Edit Information
+              </Button>
+              {changeHistory.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => setHistoryDialogOpen(true)} className="gap-2">
+                  <History className="h-4 w-4" />
+                  View History ({changeHistory.length})
+                </Button>
               )}
             </div>
           </div>
@@ -253,6 +393,229 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction }: Do
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit Donor Information</DialogTitle>
+            <DialogDescription>
+              Update the name or email for this donor. This will affect all {donor?.donation_count} transaction(s).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input
+                id="edit-name"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                placeholder="Enter donor name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email (optional)</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editedEmail}
+                onChange={(e) => setEditedEmail(e.target.value)}
+                placeholder="Enter donor email"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Notes (optional)</Label>
+              <Textarea
+                id="edit-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add notes about why you're making this change..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSubmit} disabled={!editedName}>
+              Continue
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Changes</DialogTitle>
+            <DialogDescription>
+              Please review the changes before saving.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Important</AlertTitle>
+            <AlertDescription>
+              This will update {donor?.donation_count} transaction(s). The previous information will be saved and can be reverted later.
+            </AlertDescription>
+          </Alert>
+
+          <div className="space-y-3 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Current Name</p>
+                <p className="text-base">{donor?.name}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">New Name</p>
+                <p className="text-base font-semibold">{editedName}</p>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Current Email</p>
+                <p className="text-base">{donor?.email}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">New Email</p>
+                <p className="text-base font-semibold">{editedEmail || 'None'}</p>
+              </div>
+            </div>
+
+            {notes && (
+              <>
+                <Separator />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                  <p className="text-sm mt-1">{notes}</p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDialogOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmEdit} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Confirm & Save'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Change History</DialogTitle>
+            <DialogDescription>
+              View all changes made to this donor's information and revert if needed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {changeHistory.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No change history found</p>
+            ) : (
+              changeHistory.map((change) => (
+                <Card key={change.id} className={change.is_reverted ? 'opacity-60' : ''}>
+                  <CardContent className="pt-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={change.is_reverted ? 'outline' : 'default'}>
+                              {change.change_type}
+                            </Badge>
+                            {change.is_reverted && (
+                              <Badge variant="secondary">Reverted</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDate(change.changed_at)} by {change.changed_by}
+                          </p>
+                        </div>
+                        {!change.is_reverted && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRevertChange(change.id)}
+                            disabled={reverting === change.id}
+                            className="gap-2"
+                          >
+                            {reverting === change.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Reverting...
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw className="h-4 w-4" />
+                                Revert
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">Previous</p>
+                          <p>Name: {change.old_name || 'N/A'}</p>
+                          <p>Email: {change.old_email || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="font-medium text-muted-foreground mb-1">Changed To</p>
+                          <p>Name: {change.new_name || 'N/A'}</p>
+                          <p>Email: {change.new_email || 'N/A'}</p>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground">
+                        Affected {change.affected_transaction_count} transaction(s)
+                      </p>
+
+                      {change.notes && (
+                        <>
+                          <Separator />
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">Notes</p>
+                            <p className="text-sm mt-1">{change.notes}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setHistoryDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
