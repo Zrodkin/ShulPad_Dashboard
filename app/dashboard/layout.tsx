@@ -1,19 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { Loader2 } from "lucide-react"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Check if we're on the login page
+  const isLoginPage = pathname === '/dashboard/login'
+
   useEffect(() => {
+    // Skip authentication check for login page
+    if (isLoginPage) {
+      setIsLoading(false)
+      return
+    }
     checkAuthentication()
-  }, [])
+  }, [isLoginPage])
 
   const checkAuthentication = async () => {
     try {
@@ -34,6 +43,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Render login page without authentication check
+  if (isLoginPage) {
+    return <>{children}</>
   }
 
   if (isLoading) {
