@@ -394,7 +394,7 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
                     >
                       <TableCell>{formatDate(donation.created_at)}</TableCell>
                       <TableCell className="text-right font-medium">
-                        ${donation.amount.toFixed(2)}
+                        ${typeof donation.amount === 'number' ? donation.amount.toFixed(2) : parseFloat(donation.amount).toFixed(2)}
                       </TableCell>
                       <TableCell>
                         {donation.is_recurring ? (
