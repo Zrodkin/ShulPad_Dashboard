@@ -158,6 +158,10 @@ export async function GET(request: NextRequest) {
     const donors = donorsResult.rows.map((row: any) => ({
       donor_email: row.donor_email,
       donor_name: row.donor_name,
+      // Create a donor identifier that works for both donors with and without emails
+      // For donors with email: use the email
+      // For donors without email: use format "name_without_email_<name>"
+      donor_identifier: row.donor_email || `name_without_email_${row.donor_name}`,
       is_anonymous: !row.donor_email,
       donation_count: parseInt(row.donation_count),
       total_donated: parseFloat(row.total_donated).toFixed(2),
@@ -165,7 +169,7 @@ export async function GET(request: NextRequest) {
       first_donation: row.first_donation,
       last_donation: row.last_donation,
       organizations_donated_to: parseInt(row.organizations_donated_to),
-      organization_names: row.organization_ids 
+      organization_names: row.organization_ids
         ? row.organization_ids.split(',').map((id: string) => orgNamesMap[id]).filter(Boolean)
         : [],
       receipts_sent: parseInt(row.receipts_sent),

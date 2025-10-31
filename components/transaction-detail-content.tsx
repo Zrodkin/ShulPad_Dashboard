@@ -183,13 +183,17 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
                 </p>
               </div>
             </div>
-            {transaction.donor_email && (
+            {(transaction.donor_email || transaction.donor_name) && (
               <>
                 <Separator />
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onNavigateToDonor(transaction.donor_email!)}
+                  onClick={() => {
+                    // Use email if available, otherwise create identifier from name
+                    const identifier = transaction.donor_email || `name_without_email_${transaction.donor_name}`
+                    onNavigateToDonor(identifier)
+                  }}
                   className="w-full"
                 >
                   View Donor Profile

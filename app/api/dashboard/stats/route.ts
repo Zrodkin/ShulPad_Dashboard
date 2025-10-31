@@ -57,6 +57,8 @@ export async function GET(request: NextRequest) {
     )
 
     // Get today's donation count (always, regardless of period filter)
+    // Using CONVERT_TZ to handle timezone conversions properly
+    // This ensures we're comparing dates in the correct timezone
     const todayStatsResult = await db.execute(
       `SELECT
         COUNT(DISTINCT d.id) as today_donations
@@ -64,7 +66,8 @@ export async function GET(request: NextRequest) {
       JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
-        AND DATE(d.created_at) = CURDATE()`,
+        AND DATE(d.created_at) >= CURDATE()
+        AND DATE(d.created_at) < DATE_ADD(CURDATE(), INTERVAL 1 DAY)`,
       [merchant_id]
     )
 

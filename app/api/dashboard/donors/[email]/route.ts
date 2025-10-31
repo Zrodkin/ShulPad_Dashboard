@@ -18,8 +18,24 @@ export async function GET(
     }
 
     const { email } = await params
-    const donorEmail = decodeURIComponent(email)
+    const donorIdentifier = decodeURIComponent(email)
     const db = createClient()
+
+    // Check if this is an anonymous donor identifier (format: "name_without_email_<name>")
+    // or a regular email address
+    let whereClause: string
+    let queryParams: any[]
+
+    if (donorIdentifier.startsWith('name_without_email_')) {
+      // Extract the name from the identifier
+      const donorName = donorIdentifier.replace('name_without_email_', '')
+      whereClause = 'AND d.donor_email IS NULL AND d.donor_name = ?'
+      queryParams = [merchant_id, donorName]
+    } else {
+      // Regular email lookup
+      whereClause = 'AND d.donor_email = ?'
+      queryParams = [merchant_id, donorIdentifier]
+    }
 
     // Get donor summary statistics across all merchant organizations
     const statsResult = await db.execute(
@@ -36,10 +52,10 @@ export async function GET(
       FROM donations d
       JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE sc.merchant_id = ?
-        AND d.donor_email = ?
+        ${whereClause}
         AND d.payment_status = 'COMPLETED'
       GROUP BY d.donor_email, d.donor_name`,
-      [merchant_id, donorEmail]
+      queryParams
     )
 
     if (statsResult.rows.length === 0) {
@@ -64,11 +80,11 @@ export async function GET(
       FROM donations d
       JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE sc.merchant_id = ?
-        AND d.donor_email = ?
+        ${whereClause}
         AND d.payment_status = 'COMPLETED'
       ORDER BY d.created_at DESC
       LIMIT 50`,
-      [merchant_id, donorEmail]
+      queryParams
     )
 
     const donationHistory = historyResult.rows.map((row: any) => ({

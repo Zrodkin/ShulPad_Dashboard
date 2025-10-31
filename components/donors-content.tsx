@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 interface Donor {
   donor_email: string | null
   donor_name: string
+  donor_identifier: string
   is_anonymous: boolean
   donation_count: number
   total_donated: string
@@ -185,13 +186,9 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
                     <TableBody>
                       {donors.map((donor, idx) => (
                         <TableRow
-                          key={donor.donor_email || `anon-${idx}`}
+                          key={donor.donor_identifier}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => {
-                            if (donor.donor_email) {
-                              onViewDonor(donor.donor_email)
-                            }
-                          }}
+                          onClick={() => onViewDonor(donor.donor_identifier)}
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
@@ -208,7 +205,7 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
                             </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground whitespace-nowrap">
-                            {donor.donor_email || 'Anonymous'}
+                            {donor.donor_email || 'Not provided'}
                           </TableCell>
                           <TableCell className="font-semibold whitespace-nowrap">
                             ${parseFloat(donor.total_donated).toLocaleString(undefined, {
@@ -226,11 +223,8 @@ export function DonorsContent({ onViewDonor }: DonorsContentProps) {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (donor.donor_email) {
-                                  onViewDonor(donor.donor_email)
-                                }
+                                onViewDonor(donor.donor_identifier)
                               }}
-                              disabled={!donor.donor_email}
                             >
                               View
                             </Button>
