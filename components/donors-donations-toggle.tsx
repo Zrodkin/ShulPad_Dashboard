@@ -29,7 +29,7 @@ interface DonorsDonationsToggleProps {
 }
 
 export function DonorsDonationsToggle({ onDonorClick, period = "all" }: DonorsDonationsToggleProps) {
-  const [mode, setMode] = useState<"top_donors" | "recent_donations">("top_donors")
+  const [mode, setMode] = useState<"top_donors" | "recent_donations">("recent_donations")
   const [topDonors, setTopDonors] = useState<TopDonor[]>([])
   const [recentDonations, setRecentDonations] = useState<RecentDonation[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,18 +141,18 @@ export function DonorsDonationsToggle({ onDonorClick, period = "all" }: DonorsDo
           </div>
           <div className="flex gap-1">
             <Button
-              variant={mode === "top_donors" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setMode("top_donors")}
-            >
-              Top
-            </Button>
-            <Button
               variant={mode === "recent_donations" ? "default" : "outline"}
               size="sm"
               onClick={() => setMode("recent_donations")}
             >
               Recent
+            </Button>
+            <Button
+              variant={mode === "top_donors" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMode("top_donors")}
+            >
+              Top
             </Button>
           </div>
         </div>
