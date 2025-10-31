@@ -4,9 +4,27 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Download, Mail, MapPin, CreditCard, Calendar, User, Loader2 } from "lucide-react"
+import { ArrowLeft, Download, Mail, MapPin, CreditCard, Calendar, User, Loader2, Edit, Check, X } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 interface Transaction {
   id: number
@@ -29,10 +47,25 @@ interface TransactionDetailContentProps {
   onNavigateToDonor: (donorEmail: string) => void
 }
 
+interface Donor {
+  donor_email: string | null
+  donor_name: string | null
+  donation_count: number
+  total_donated: number
+}
+
 export function TransactionDetailContent({ transactionId, onBack, onNavigateToDonor }: TransactionDetailContentProps) {
   const [transaction, setTransaction] = useState<Transaction | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editMode, setEditMode] = useState<'existing' | 'new'>('existing')
+  const [donors, setDonors] = useState<Donor[]>([])
+  const [selectedDonorEmail, setSelectedDonorEmail] = useState('')
+  const [newDonorName, setNewDonorName] = useState('')
+  const [newDonorEmail, setNewDonorEmail] = useState('')
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchTransaction()
@@ -57,9 +90,71 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
     }
   }
 
+  const fetchDonors = async () => {
+    try {
+      const response = await fetch('/api/dashboard/donors?limit=100')
+      if (!response.ok) throw new Error('Failed to fetch donors')
+      const data = await response.json()
+      setDonors(data.donors || [])
+    } catch (err) {
+      console.error('Error fetching donors:', err)
+    }
+  }
+
+  const handleEditDonor = () => {
+    setEditDialogOpen(true)
+    fetchDonors()
+  }
+
+  const handleSaveDonorUpdate = async () => {
+    if (!transaction) return
+
+    setSaving(true)
+    try {
+      let donor_email: string | null = null
+      let donor_name: string | null = null
+
+      if (editMode === 'existing') {
+        // Find the selected donor
+        const selectedDonor = donors.find(d =>
+          (d.donor_email || `name_without_email_${d.donor_name}`) === selectedDonorEmail
+        )
+        if (selectedDonor) {
+          donor_email = selectedDonor.donor_email
+          donor_name = selectedDonor.donor_name
+        }
+      } else {
+        // Use new donor info
+        donor_email = newDonorEmail || null
+        donor_name = newDonorName
+      }
+
+      const response = await fetch(`/api/dashboard/donations/${transaction.id}/update-donor`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ donor_email, donor_name, notes })
+      })
+
+      if (!response.ok) throw new Error('Failed to update donor')
+
+      const data = await response.json()
+      setTransaction(data.transaction)
+      setEditDialogOpen(false)
+      setNotes('')
+      setNewDonorName('')
+      setNewDonorEmail('')
+      setSelectedDonorEmail('')
+    } catch (err) {
+      console.error('Error updating donor:', err)
+      alert('Failed to update donor information')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleDownloadReceipt = async () => {
     if (!transaction?.payment_id) return
-    
+
     try {
       const response = await fetch(`/api/dashboard/receipts/${transaction.id}`)
       const blob = await response.blob()
@@ -163,10 +258,16 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
         {/* Donor Information */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Donor Information
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Donor Information
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={handleEditDonor} className="gap-2">
+                <Edit className="h-4 w-4" />
+                Edit
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -263,6 +364,114 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Donor Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Update Donor Information</DialogTitle>
+            <DialogDescription>
+              Associate this transaction with an existing donor or create a new donor profile.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Mode Selection */}
+            <div className="space-y-2">
+              <Label>Select Option</Label>
+              <Select value={editMode} onValueChange={(value: 'existing' | 'new') => setEditMode(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="existing">Associate with Existing Donor</SelectItem>
+                  <SelectItem value="new">Create New Donor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {editMode === 'existing' ? (
+              /* Existing Donor Selection */
+              <div className="space-y-2">
+                <Label htmlFor="donor">Select Donor</Label>
+                <Select value={selectedDonorEmail} onValueChange={setSelectedDonorEmail}>
+                  <SelectTrigger id="donor">
+                    <SelectValue placeholder="Choose a donor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {donors.map((donor) => {
+                      const identifier = donor.donor_email || `name_without_email_${donor.donor_name}`
+                      const displayName = donor.donor_name || 'Anonymous'
+                      const displayEmail = donor.donor_email || 'No email'
+                      return (
+                        <SelectItem key={identifier} value={identifier}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{displayName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {displayEmail} • {donor.donation_count} donations • ${donor.total_donated.toFixed(2)}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              /* New Donor Form */
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-name">Donor Name *</Label>
+                  <Input
+                    id="new-name"
+                    placeholder="Enter donor name"
+                    value={newDonorName}
+                    onChange={(e) => setNewDonorName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-email">Donor Email (optional)</Label>
+                  <Input
+                    id="new-email"
+                    type="email"
+                    placeholder="Enter donor email"
+                    value={newDonorEmail}
+                    onChange={(e) => setNewDonorEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Add any notes about this change..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveDonorUpdate} disabled={saving || (editMode === 'existing' && !selectedDonorEmail) || (editMode === 'new' && !newDonorName)}>
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
