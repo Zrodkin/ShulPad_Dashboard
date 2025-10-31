@@ -220,28 +220,64 @@ export async function GET(request: NextRequest) {
 
       case 'top_donors': {
         // Top donors by total amount across all merchant organizations
+        // Include both donations table and receipt_log table
         const limit = parseInt(searchParams.get('limit') || '10')
 
         const result = await db.execute(
           `SELECT
-            COALESCE(d.donor_name, 'Anonymous') as donor_name,
-            d.donor_email,
-            COUNT(d.id) as donation_count,
-            SUM(d.amount) as total_donated
-          FROM donations d
-          JOIN square_connections sc ON d.organization_id = sc.organization_id
-          WHERE sc.merchant_id = ?
-            AND d.payment_status = 'COMPLETED'
-            ${dateFilter}
-          GROUP BY donor_name, d.donor_email
+            donor_identifier,
+            donor_name,
+            donor_email,
+            SUM(donation_count) as donation_count,
+            SUM(total_donated) as total_donated
+          FROM (
+            SELECT
+              CASE
+                WHEN d.donor_email IS NOT NULL THEN d.donor_email
+                ELSE CONCAT('name_without_email_', COALESCE(d.donor_name, 'Anonymous'))
+              END as donor_identifier,
+              COALESCE(d.donor_name, 'Anonymous') as donor_name,
+              d.donor_email,
+              COUNT(d.id) as donation_count,
+              SUM(d.amount) as total_donated
+            FROM donations d
+            JOIN square_connections sc ON d.organization_id = sc.organization_id
+            WHERE sc.merchant_id = ?
+              AND d.payment_status = 'COMPLETED'
+              ${dateFilter}
+            GROUP BY d.donor_email, d.donor_name
+
+            UNION ALL
+
+            SELECT
+              rl.donor_email as donor_identifier,
+              'Anonymous' as donor_name,
+              rl.donor_email,
+              COUNT(rl.id) as donation_count,
+              SUM(rl.amount) as total_donated
+            FROM receipt_log rl
+            JOIN square_connections sc ON rl.organization_id = sc.organization_id
+            WHERE sc.merchant_id = ?
+              AND rl.delivery_status = 'sent'
+              AND rl.donor_email IS NOT NULL
+              ${dateFilter.replace('d.', 'rl.').replace('created_at', 'requested_at')}
+              AND rl.transaction_id NOT IN (
+                SELECT d2.payment_id FROM donations d2
+                JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+                WHERE sc2.merchant_id = ?
+              )
+            GROUP BY rl.donor_email
+          ) combined
+          GROUP BY donor_identifier, donor_name, donor_email
           ORDER BY total_donated DESC
           LIMIT ?`,
-          [merchant_id, ...dateParams, limit]
+          [merchant_id, ...dateParams, merchant_id, ...dateParams, merchant_id, limit]
         )
 
         chartData = {
           type: 'bar',
           data: result.rows.map((row: any) => ({
+            donor_identifier: row.donor_identifier,
             donor_name: row.donor_name,
             donor_email: row.donor_email,
             donation_count: parseInt(row.donation_count),
@@ -285,29 +321,65 @@ export async function GET(request: NextRequest) {
 
       case 'recent_donations': {
         // Recent donations across all merchant organizations
+        // Include both donations table and receipt_log table
         const limit = parseInt(searchParams.get('limit') || '10')
 
         const result = await db.execute(
           `SELECT
-            d.id,
-            COALESCE(d.donor_name, 'Anonymous') as donor_name,
-            d.donor_email,
-            d.amount,
-            d.created_at
-          FROM donations d
-          JOIN square_connections sc ON d.organization_id = sc.organization_id
-          WHERE sc.merchant_id = ?
-            AND d.payment_status = 'COMPLETED'
-            ${dateFilter}
-          ORDER BY d.created_at DESC
+            id,
+            donor_identifier,
+            donor_name,
+            donor_email,
+            amount,
+            created_at
+          FROM (
+            SELECT
+              d.id,
+              CASE
+                WHEN d.donor_email IS NOT NULL THEN d.donor_email
+                ELSE CONCAT('name_without_email_', COALESCE(d.donor_name, 'Anonymous'))
+              END as donor_identifier,
+              COALESCE(d.donor_name, 'Anonymous') as donor_name,
+              d.donor_email,
+              d.amount,
+              d.created_at
+            FROM donations d
+            JOIN square_connections sc ON d.organization_id = sc.organization_id
+            WHERE sc.merchant_id = ?
+              AND d.payment_status = 'COMPLETED'
+              ${dateFilter}
+
+            UNION ALL
+
+            SELECT
+              rl.id,
+              rl.donor_email as donor_identifier,
+              'Anonymous' as donor_name,
+              rl.donor_email,
+              rl.amount,
+              rl.requested_at as created_at
+            FROM receipt_log rl
+            JOIN square_connections sc ON rl.organization_id = sc.organization_id
+            WHERE sc.merchant_id = ?
+              AND rl.delivery_status = 'sent'
+              AND rl.donor_email IS NOT NULL
+              ${dateFilter.replace('d.', 'rl.').replace('created_at', 'requested_at')}
+              AND rl.transaction_id NOT IN (
+                SELECT d2.payment_id FROM donations d2
+                JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+                WHERE sc2.merchant_id = ?
+              )
+          ) combined
+          ORDER BY created_at DESC
           LIMIT ?`,
-          [merchant_id, ...dateParams, limit]
+          [merchant_id, ...dateParams, merchant_id, ...dateParams, merchant_id, limit]
         )
 
         chartData = {
           type: 'list',
           data: result.rows.map((row: any) => ({
             id: row.id,
+            donor_identifier: row.donor_identifier,
             donor_name: row.donor_name,
             donor_email: row.donor_email,
             amount: parseFloat(row.amount).toFixed(2),

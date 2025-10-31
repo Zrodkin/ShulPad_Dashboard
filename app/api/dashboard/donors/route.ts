@@ -78,21 +78,41 @@ export async function GET(request: NextRequest) {
 
     // Get total count of unique donors across all merchant organizations
     // Exclude donors with no identifying information (both NULL email and NULL/empty name)
+    // Include both donations table and receipt_log table
     const countResult = await db.execute(
-      `SELECT COUNT(DISTINCT
-         CASE
-           WHEN d.donor_email IS NOT NULL THEN d.donor_email
-           ELSE CONCAT('anon_', d.id)
-         END
-       ) as total
-       FROM donations d
-       JOIN square_connections sc ON d.organization_id = sc.organization_id
-       WHERE ${orgCondition}
-         AND d.payment_status = 'COMPLETED'
-         AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
-         ${dateFilter}
-         ${searchFilter}`,
-      [...orgParams, ...dateParams, ...searchParams_arr]
+      `SELECT COUNT(DISTINCT donor_identifier) as total
+       FROM (
+         SELECT
+           CASE
+             WHEN d.donor_email IS NOT NULL THEN d.donor_email
+             ELSE CONCAT('name_without_email_', COALESCE(d.donor_name, 'Anonymous'))
+           END as donor_identifier
+         FROM donations d
+         JOIN square_connections sc ON d.organization_id = sc.organization_id
+         WHERE ${orgCondition}
+           AND d.payment_status = 'COMPLETED'
+           AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
+           ${dateFilter}
+           ${searchFilter}
+
+         UNION ALL
+
+         SELECT
+           rl.donor_email as donor_identifier
+         FROM receipt_log rl
+         JOIN square_connections sc ON rl.organization_id = sc.organization_id
+         WHERE ${orgCondition.replace('d.', 'rl.')}
+           AND rl.delivery_status = 'sent'
+           AND rl.donor_email IS NOT NULL
+           ${dateFilter.replace('d.', 'rl.').replace('created_at', 'requested_at')}
+           ${searchFilter.replace('d.donor_name', 'NULL').replace('d.donor_email', 'rl.donor_email')}
+           AND rl.transaction_id NOT IN (
+             SELECT d2.payment_id FROM donations d2
+             JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+             WHERE sc2.merchant_id = ?
+           )
+       ) combined`,
+      [...orgParams, ...dateParams, ...searchParams_arr, ...orgParams, ...dateParams, ...searchParams_arr, merchant_id]
     )
 
     const totalCount = parseInt(countResult.rows[0].total)
@@ -122,32 +142,79 @@ export async function GET(request: NextRequest) {
 
     // Get aggregated donor data across all merchant organizations
     // Exclude donors with no identifying information (both NULL email and NULL/empty name)
+    // Include both donations table and receipt_log table
     const donorsResult = await db.execute(
       `SELECT
-        COALESCE(d.donor_email, CONCAT('anonymous_', MIN(d.id))) as donor_identifier,
-        d.donor_email,
-        COALESCE(d.donor_name, 'Anonymous Donor') as donor_name,
-        COUNT(d.id) as donation_count,
-        SUM(d.amount) as total_donated,
-        AVG(d.amount) as average_donation,
-        MIN(d.created_at) as first_donation,
-        MAX(d.created_at) as last_donation,
-        COUNT(DISTINCT d.organization_id) as organizations_donated_to,
-        GROUP_CONCAT(DISTINCT d.organization_id) as organization_ids,
-        SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
-        SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
-      FROM donations d
-      JOIN square_connections sc ON d.organization_id = sc.organization_id
-      WHERE ${orgCondition}
-        AND d.payment_status = 'COMPLETED'
-        AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
-        ${dateFilter}
-        ${searchFilter}
-      GROUP BY d.donor_email, d.donor_name
+        donor_identifier,
+        donor_email,
+        donor_name,
+        SUM(donation_count) as donation_count,
+        SUM(total_donated) as total_donated,
+        AVG(average_donation) as average_donation,
+        MIN(first_donation) as first_donation,
+        MAX(last_donation) as last_donation,
+        COUNT(DISTINCT organization_id) as organizations_donated_to,
+        GROUP_CONCAT(DISTINCT organization_id) as organization_ids,
+        SUM(receipts_sent) as receipts_sent,
+        SUM(recurring_donations) as recurring_donations
+      FROM (
+        SELECT
+          CASE
+            WHEN d.donor_email IS NOT NULL THEN d.donor_email
+            ELSE CONCAT('name_without_email_', d.donor_name)
+          END as donor_identifier,
+          d.donor_email,
+          COALESCE(d.donor_name, 'Anonymous Donor') as donor_name,
+          COUNT(d.id) as donation_count,
+          SUM(d.amount) as total_donated,
+          AVG(d.amount) as average_donation,
+          MIN(d.created_at) as first_donation,
+          MAX(d.created_at) as last_donation,
+          d.organization_id,
+          SUM(CASE WHEN d.receipt_sent = 1 THEN 1 ELSE 0 END) as receipts_sent,
+          SUM(CASE WHEN d.is_recurring = 1 THEN 1 ELSE 0 END) as recurring_donations
+        FROM donations d
+        JOIN square_connections sc ON d.organization_id = sc.organization_id
+        WHERE ${orgCondition}
+          AND d.payment_status = 'COMPLETED'
+          AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
+          ${dateFilter}
+          ${searchFilter}
+        GROUP BY d.donor_email, d.donor_name, d.organization_id
+
+        UNION ALL
+
+        SELECT
+          rl.donor_email as donor_identifier,
+          rl.donor_email,
+          'Anonymous Donor' as donor_name,
+          COUNT(rl.id) as donation_count,
+          SUM(rl.amount) as total_donated,
+          AVG(rl.amount) as average_donation,
+          MIN(rl.requested_at) as first_donation,
+          MAX(rl.requested_at) as last_donation,
+          rl.organization_id,
+          COUNT(rl.id) as receipts_sent,
+          0 as recurring_donations
+        FROM receipt_log rl
+        JOIN square_connections sc ON rl.organization_id = sc.organization_id
+        WHERE ${orgCondition.replace('d.', 'rl.')}
+          AND rl.delivery_status = 'sent'
+          AND rl.donor_email IS NOT NULL
+          ${dateFilter.replace('d.', 'rl.').replace('created_at', 'requested_at')}
+          ${searchFilter.replace('d.donor_name', 'NULL').replace('d.donor_email', 'rl.donor_email')}
+          AND rl.transaction_id NOT IN (
+            SELECT d2.payment_id FROM donations d2
+            JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+            WHERE sc2.merchant_id = ?
+          )
+        GROUP BY rl.donor_email, rl.organization_id
+      ) combined
+      GROUP BY donor_identifier, donor_email, donor_name
       ${havingClause}
       ORDER BY ${safeSortBy} ${safeSortOrder}
       LIMIT ? OFFSET ?`,
-      [...orgParams, ...dateParams, ...searchParams_arr, ...havingParams, limit, offset]
+      [...orgParams, ...dateParams, ...searchParams_arr, ...orgParams, ...dateParams, ...searchParams_arr, merchant_id, ...havingParams, limit, offset]
     )
 
     // Get organization names for all merchant organizations
@@ -184,20 +251,47 @@ export async function GET(request: NextRequest) {
 
     // Get summary statistics across all merchant organizations
     // Exclude donors with no identifying information (both NULL email and NULL/empty name)
+    // Include both donations table and receipt_log table
     const statsResult = await db.execute(
       `SELECT
-        COUNT(DISTINCT d.donor_email) as unique_donors_with_email,
-        COUNT(DISTINCT CASE WHEN d.donor_email IS NULL THEN d.id END) as anonymous_donors,
-        SUM(d.amount) as total_donated,
-        AVG(d.amount) as average_donation,
-        COUNT(DISTINCT d.organization_id) as organizations_with_donations
-      FROM donations d
-      JOIN square_connections sc ON d.organization_id = sc.organization_id
-      WHERE ${orgCondition}
-        AND d.payment_status = 'COMPLETED'
-        AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
-        ${dateFilter}`,
-      [...orgParams, ...dateParams]
+        COUNT(DISTINCT CASE WHEN donor_email IS NOT NULL THEN donor_email END) as unique_donors_with_email,
+        COUNT(DISTINCT CASE WHEN donor_email IS NULL THEN donor_id END) as anonymous_donors,
+        SUM(amount) as total_donated,
+        AVG(amount) as average_donation,
+        COUNT(DISTINCT organization_id) as organizations_with_donations
+      FROM (
+        SELECT
+          d.donor_email,
+          d.id as donor_id,
+          d.amount,
+          d.organization_id
+        FROM donations d
+        JOIN square_connections sc ON d.organization_id = sc.organization_id
+        WHERE ${orgCondition}
+          AND d.payment_status = 'COMPLETED'
+          AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
+          ${dateFilter}
+
+        UNION ALL
+
+        SELECT
+          rl.donor_email,
+          rl.id as donor_id,
+          rl.amount,
+          rl.organization_id
+        FROM receipt_log rl
+        JOIN square_connections sc ON rl.organization_id = sc.organization_id
+        WHERE ${orgCondition.replace('d.', 'rl.')}
+          AND rl.delivery_status = 'sent'
+          AND rl.donor_email IS NOT NULL
+          ${dateFilter.replace('d.', 'rl.').replace('created_at', 'requested_at')}
+          AND rl.transaction_id NOT IN (
+            SELECT d2.payment_id FROM donations d2
+            JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+            WHERE sc2.merchant_id = ?
+          )
+      ) combined`,
+      [...orgParams, ...dateParams, ...orgParams, ...dateParams, merchant_id]
     )
 
     const stats = statsResult.rows[0]

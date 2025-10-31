@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 
 interface TopDonor {
+  donor_identifier: string
   donor_name: string
   donor_email: string | null
   donation_count: number
@@ -15,6 +16,7 @@ interface TopDonor {
 
 interface RecentDonation {
   id: string
+  donor_identifier: string
   donor_name: string
   donor_email: string | null
   amount: string
@@ -178,9 +180,9 @@ export function DonorsDonationsToggle({ onDonorClick, period = "all" }: DonorsDo
             <div className="space-y-3 sm:space-y-4">
               {topDonors.map((donor, index) => (
                 <div
-                  key={donor.donor_email || `anon-${index}`}
-                  onClick={() => donor.donor_email && onDonorClick?.(donor.donor_email)}
-                  className={`flex items-center gap-3 sm:gap-4 ${donor.donor_email ? 'cursor-pointer hover:bg-accent/50' : ''} -mx-2 px-2 py-2 rounded-lg transition-colors`}
+                  key={donor.donor_identifier || `anon-${index}`}
+                  onClick={() => onDonorClick?.(donor.donor_identifier)}
+                  className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:bg-accent/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                     <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
@@ -219,8 +221,8 @@ export function DonorsDonationsToggle({ onDonorClick, period = "all" }: DonorsDo
               {recentDonations.map((donation, index) => (
                 <div
                   key={donation.id}
-                  onClick={() => donation.donor_email && onDonorClick?.(donation.donor_email)}
-                  className={`flex items-center gap-3 sm:gap-4 ${donation.donor_email ? 'cursor-pointer hover:bg-accent/50' : ''} -mx-2 px-2 py-2 rounded-lg transition-colors`}
+                  onClick={() => onDonorClick?.(donation.donor_identifier)}
+                  className="flex items-center gap-3 sm:gap-4 cursor-pointer hover:bg-accent/50 -mx-2 px-2 py-2 rounded-lg transition-colors"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                     <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
