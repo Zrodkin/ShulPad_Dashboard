@@ -79,7 +79,7 @@ export async function GET(
 
         SELECT
           rl.donor_email,
-          COALESCE(rl.donor_name, 'Anonymous Donor') as donor_name,
+          rl.donor_name,
           COUNT(rl.id) as donation_count,
           SUM(rl.amount) as total_donated,
           AVG(rl.amount) as average_donation,
@@ -97,9 +97,9 @@ export async function GET(
             JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
             WHERE sc2.merchant_id = ?
           )
-        GROUP BY rl.donor_email`}
+        GROUP BY rl.donor_email, rl.donor_name`}
       ) combined
-      GROUP BY donor_email`,
+      GROUP BY donor_email, donor_name`,
       isAnonymous
         ? queryParams
         : [merchant_id, donorIdentifier, merchant_id, donorIdentifier, merchant_id]

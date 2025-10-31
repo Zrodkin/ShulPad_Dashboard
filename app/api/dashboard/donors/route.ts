@@ -147,7 +147,10 @@ export async function GET(request: NextRequest) {
       `SELECT
         donor_identifier,
         donor_email,
-        donor_name,
+        COALESCE(
+          MAX(CASE WHEN donor_name IS NOT NULL AND donor_name != '' AND donor_name != 'Anonymous Donor' THEN donor_name END),
+          'Anonymous Donor'
+        ) as donor_name,
         SUM(donation_count) as donation_count,
         SUM(total_donated) as total_donated,
         AVG(average_donation) as average_donation,
@@ -164,7 +167,7 @@ export async function GET(request: NextRequest) {
             ELSE CONCAT('name_without_email_', d.donor_name)
           END as donor_identifier,
           d.donor_email,
-          COALESCE(d.donor_name, 'Anonymous Donor') as donor_name,
+          d.donor_name,
           COUNT(d.id) as donation_count,
           SUM(d.amount) as total_donated,
           AVG(d.amount) as average_donation,
@@ -187,7 +190,7 @@ export async function GET(request: NextRequest) {
         SELECT
           rl.donor_email as donor_identifier,
           rl.donor_email,
-          COALESCE(rl.donor_name, 'Anonymous Donor') as donor_name,
+          rl.donor_name,
           COUNT(rl.id) as donation_count,
           SUM(rl.amount) as total_donated,
           AVG(rl.amount) as average_donation,
@@ -208,9 +211,9 @@ export async function GET(request: NextRequest) {
             JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
             WHERE sc2.merchant_id = ?
           )
-        GROUP BY rl.donor_email, rl.organization_id
+        GROUP BY rl.donor_email, rl.donor_name, rl.organization_id
       ) combined
-      GROUP BY donor_identifier, donor_email, donor_name
+      GROUP BY donor_identifier, donor_email
       ${havingClause}
       ORDER BY ${safeSortBy} ${safeSortOrder}
       LIMIT ? OFFSET ?`,
