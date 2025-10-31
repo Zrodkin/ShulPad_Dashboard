@@ -221,6 +221,7 @@ export async function GET(request: NextRequest) {
       case 'top_donors': {
         // Top donors by total amount across all merchant organizations
         // Include both donations table and receipt_log table
+        // Exclude donors with no email AND no name
         const limit = parseInt(searchParams.get('limit') || '10')
 
         const result = await db.execute(
@@ -234,7 +235,7 @@ export async function GET(request: NextRequest) {
             SELECT
               CASE
                 WHEN d.donor_email IS NOT NULL THEN d.donor_email
-                ELSE CONCAT('name_without_email_', COALESCE(d.donor_name, 'Anonymous'))
+                ELSE CONCAT('name_without_email_', d.donor_name)
               END as donor_identifier,
               COALESCE(d.donor_name, 'Anonymous') as donor_name,
               d.donor_email,
@@ -244,6 +245,7 @@ export async function GET(request: NextRequest) {
             JOIN square_connections sc ON d.organization_id = sc.organization_id
             WHERE sc.merchant_id = ?
               AND d.payment_status = 'COMPLETED'
+              AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
               ${dateFilter}
             GROUP BY d.donor_email, d.donor_name
 
@@ -322,6 +324,7 @@ export async function GET(request: NextRequest) {
       case 'recent_donations': {
         // Recent donations across all merchant organizations
         // Include both donations table and receipt_log table
+        // Exclude donors with no email AND no name
         const limit = parseInt(searchParams.get('limit') || '10')
 
         const result = await db.execute(
@@ -337,7 +340,7 @@ export async function GET(request: NextRequest) {
               d.id,
               CASE
                 WHEN d.donor_email IS NOT NULL THEN d.donor_email
-                ELSE CONCAT('name_without_email_', COALESCE(d.donor_name, 'Anonymous'))
+                ELSE CONCAT('name_without_email_', d.donor_name)
               END as donor_identifier,
               COALESCE(d.donor_name, 'Anonymous') as donor_name,
               d.donor_email,
@@ -347,6 +350,7 @@ export async function GET(request: NextRequest) {
             JOIN square_connections sc ON d.organization_id = sc.organization_id
             WHERE sc.merchant_id = ?
               AND d.payment_status = 'COMPLETED'
+              AND NOT (d.donor_email IS NULL AND (d.donor_name IS NULL OR d.donor_name = ''))
               ${dateFilter}
 
             UNION ALL
