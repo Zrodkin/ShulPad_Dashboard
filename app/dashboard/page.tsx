@@ -1,5 +1,14 @@
-import { AdminDashboard } from "@/components/admin-dashboard"
+"use client"
+
+import { DashboardContentConnected } from "@/components/dashboard-content-connected"
+import { useRouter } from "next/navigation"
 
 export default function DashboardPage() {
-  return <AdminDashboard />
+  const router = useRouter()
+
+  const handleDonorClick = (donorEmail: string) => {
+    router.push(`/dashboard/donors/${encodeURIComponent(donorEmail)}`)
+  }
+
+  return <DashboardContentConnected onDonorClick={handleDonorClick} />
 }
