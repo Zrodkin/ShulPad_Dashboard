@@ -113,7 +113,9 @@ function LoginPageContent() {
             <FeatureRow text="View real-time donation analytics and insights" />
             <FeatureRow text="Manage donor information and relationships" />
             <FeatureRow text="Track transactions and generate detailed reports" />
-            <FeatureRow text="Connect seamlessly with your Square account" />
+            <div className="hidden md:block">
+              <FeatureRow text="Connect seamlessly with your Square account" />
+            </div>
           </div>
 
           {/* Error alert */}
@@ -138,7 +140,7 @@ function LoginPageContent() {
                 disabled={loading}
               >
                 <span className="flex items-center justify-center gap-2">
-                  <span className="md:hidden">Connect with Square</span>
+                  <span className="md:hidden">Login With Square</span>
                   <span className="hidden md:inline">Connect with Square to Get Started</span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -170,7 +172,9 @@ function LoginPageContent() {
           <div className="flex items-center gap-2 text-sm pt-2">
             <span className="text-black">Need help?</span>
             <a
-              href="mailto:support@shulpad.com"
+              href="https://wa.me/16179032387"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-green-600 font-medium hover:underline transition-colors duration-200"
             >
               Contact support
