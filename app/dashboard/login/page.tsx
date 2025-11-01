@@ -103,7 +103,7 @@ function LoginPageContent() {
           {/* Title and subtitle */}
           <div className="text-center space-y-2">
             <h1 className="text-4xl font-bold text-black">Welcome to ShulPad</h1>
-            <p className="text-base text-gray-600 px-4">
+            <p className="hidden md:block text-base text-gray-600 px-4">
               Your complete dashboard for managing donations and donor relationships.
             </p>
           </div>
@@ -111,7 +111,7 @@ function LoginPageContent() {
           {/* Features list */}
           <div className="w-full space-y-5 py-4">
             <FeatureRow text="View real-time donation analytics and insights" />
-            <FeatureRow text="Manage donor information and send thank you emails" />
+            <FeatureRow text="Manage donor information and relationships" />
             <FeatureRow text="Track transactions and generate detailed reports" />
             <FeatureRow text="Connect seamlessly with your Square account" />
           </div>
@@ -138,7 +138,8 @@ function LoginPageContent() {
                 disabled={loading}
               >
                 <span className="flex items-center justify-center gap-2">
-                  <span>Connect with Square to Get Started</span>
+                  <span className="md:hidden">Connect with Square</span>
+                  <span className="hidden md:inline">Connect with Square to Get Started</span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="20"
