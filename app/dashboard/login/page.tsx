@@ -62,9 +62,9 @@ function LoginPageContent() {
     return (
       <div className="min-h-screen flex items-center justify-center"
         style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)",
+          background: "linear-gradient(135deg, rgb(140, 120, 214) 0%, rgb(143, 181, 255) 33%, rgb(247, 194, 161) 66%, rgb(247, 107, 107) 100%)",
         }}>
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+        <Loader2 className="h-12 w-12 animate-spin text-white" />
       </div>
     )
   }
@@ -73,89 +73,130 @@ function LoginPageContent() {
     <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)",
-        backgroundSize: "400% 400%",
-        animation: "gradient 15s ease infinite",
+        background: "linear-gradient(135deg, rgb(140, 120, 214) 0%, rgb(143, 181, 255) 33%, rgb(247, 194, 161) 66%, rgb(247, 107, 107) 100%)",
       }}
     >
+      {/* Main content card */}
       <div
-        className="absolute inset-0 opacity-0"
+        className="relative z-10 w-full max-w-lg mx-auto px-10 py-14 rounded-3xl"
         style={{
-          background: "rgba(0, 0, 0, 0.15)",
-        }}
-      ></div>
-
-      <Card
-        className="max-w-md hover-lift relative z-10 w-full"
-        style={{
-          background: "rgb(255, 255, 255)",
-          border: "1px solid rgba(0, 0, 0, 0.08)",
-          boxShadow:
-            "0 20px 60px rgba(0, 0, 0, 0.15), 0 8px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.08)",
+          background: "rgba(255, 255, 255, 0.85)",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 10px 40px rgba(0, 0, 0, 0.1)",
         }}
       >
-        <div className="flex justify-center pt-8 pb-4">
-          <div
-            className="relative w-24 h-24 rounded-full overflow-hidden"
-            style={{
-              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(255, 255, 255, 0.3)",
-            }}
-          >
-            <Image src="/shulpad-logo.png" alt="ShulPad Logo" fill className="object-cover" />
+        <div className="flex flex-col items-center space-y-8">
+          {/* Logo with glass morphism */}
+          <div className="mb-4">
+            <div
+              className="relative w-24 h-24 rounded-full overflow-hidden"
+              style={{
+                background: "rgba(255, 255, 255, 0.3)",
+                backdropFilter: "blur(20px)",
+                boxShadow: "0 5px 10px rgba(0, 0, 0, 0.1)",
+              }}
+            >
+              <Image src="/shulpad-logo.png" alt="ShulPad Logo" fill className="object-cover" />
+            </div>
           </div>
-        </div>
 
-        <CardHeader className="text-center space-y-2">
-          <CardTitle className="text-3xl font-bold font-sans text-card-foreground">ShulPad Dashboard</CardTitle>
-          <CardDescription className="text-card-foreground/70 font-sans">
-            Sign in with Square to continue
-          </CardDescription>
-        </CardHeader>
+          {/* Title and subtitle */}
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl font-bold text-black">Welcome to ShulPad</h1>
+            <p className="text-base text-gray-600 px-4">
+              Your complete dashboard for managing donations and donor relationships.
+            </p>
+          </div>
 
-        <CardContent className="space-y-6">
+          {/* Features list */}
+          <div className="w-full space-y-5 py-4">
+            <FeatureRow text="View real-time donation analytics and insights" />
+            <FeatureRow text="Manage donor information and send thank you emails" />
+            <FeatureRow text="Track transactions and generate detailed reports" />
+            <FeatureRow text="Connect seamlessly with your Square account" />
+          </div>
+
           {/* Error alert */}
           {error && (
-            <Alert variant="destructive" className="bg-red-950/50 border-red-900/50 text-red-200">
+            <Alert variant="destructive" className="w-full bg-red-50 border-red-200 text-red-800">
               <AlertDescription className="text-sm">{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4">
-            <Button
-              type="submit"
-              className="w-full ripple-effect hover-lift font-sans font-bold py-5 transition-all duration-300"
-              style={{ backgroundColor: "#0C115B", color: "white" }}
-              disabled={loading}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  <span>Connecting to Square...</span>
-                </span>
-              ) : (
-             <span className="flex items-center justify-center gap-3">
-                  <span>Sign in with Square</span>
-                </span>
-              )}
-            </Button>
-          </form>
-
-          {/* Sign up link */}
-          <div className="text-center">
-            <p className="text-sm text-card-foreground/60">
-              Don't have a Square account?{' '}
-              <a
-                href="https://squareup.com/signup"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-card-foreground font-medium hover:underline transition-colors duration-200"
+          {/* Status or button */}
+          {loading ? (
+            <div className="flex flex-col items-center space-y-4 py-4">
+              <Loader2 className="h-12 w-12 animate-spin text-black" />
+              <p className="text-lg font-semibold text-black">Connecting to Square...</p>
+            </div>
+          ) : (
+            <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="w-full">
+              <Button
+                type="submit"
+                className="w-full py-6 px-8 rounded-2xl font-semibold text-base transition-all duration-200 hover:shadow-lg"
+                style={{ backgroundColor: "black", color: "white" }}
+                disabled={loading}
               >
-                Sign up
-              </a>
-            </p>
+                <span className="flex items-center justify-center gap-2">
+                  <span>Connect with Square to Get Started</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </span>
+              </Button>
+            </form>
+          )}
+
+          {/* Terms text */}
+          <p className="text-xs text-gray-600 text-center px-4 leading-relaxed">
+            By continuing, you agree to connect your Square account to ShulPad.
+            <br />
+            We'll use this to process payments and manage your donations.
+          </p>
+
+          {/* Support link */}
+          <div className="flex items-center gap-2 text-sm pt-2">
+            <span className="text-black">Need help?</span>
+            <a
+              href="mailto:support@shulpad.com"
+              className="text-green-600 font-medium hover:underline transition-colors duration-200"
+            >
+              Contact support
+            </a>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Feature row component
+function FeatureRow({ text }: { text: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="text-black flex-shrink-0 mt-0.5"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className="text-gray-600">{text}</span>
     </div>
   )
 }
@@ -165,9 +206,9 @@ export default function DashboardLoginPage() {
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center"
         style={{
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)",
+          background: "linear-gradient(135deg, rgb(140, 120, 214) 0%, rgb(143, 181, 255) 33%, rgb(247, 194, 161) 66%, rgb(247, 107, 107) 100%)",
         }}>
-        <Loader2 className="h-8 w-8 animate-spin text-white" />
+        <Loader2 className="h-12 w-12 animate-spin text-white" />
       </div>
     }>
       <LoginPageContent />
