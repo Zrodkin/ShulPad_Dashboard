@@ -109,13 +109,11 @@ function LoginPageContent() {
           </div>
 
           {/* Features list */}
-          <div className="w-full space-y-5 py-2 md:py-4">
+          <div className="hidden md:block w-full space-y-5 py-2 md:py-4">
             <FeatureRow text="View real-time donation analytics and insights" />
             <FeatureRow text="Manage donor information and relationships" />
             <FeatureRow text="Track transactions and generate detailed reports" />
-            <div className="hidden md:block">
-              <FeatureRow text="Connect seamlessly with your Square account" />
-            </div>
+            <FeatureRow text="Connect seamlessly with your Square account" />
           </div>
 
           {/* Error alert */}
