@@ -133,9 +133,20 @@ export async function PATCH(
       [id]
     )
 
+    const row = updatedResult.rows[0] as any
+
+    // Convert amount to number to prevent toFixed errors on the frontend
+    const transaction = {
+      ...row,
+      amount: parseFloat(row.amount),
+      receipt_sent: Boolean(row.receipt_sent),
+      is_custom_amount: Boolean(row.is_custom_amount),
+      is_recurring: Boolean(row.is_recurring)
+    }
+
     return NextResponse.json({
       success: true,
-      transaction: updatedResult.rows[0],
+      transaction,
       message: 'Transaction donor information updated successfully'
     })
   } catch (error) {
