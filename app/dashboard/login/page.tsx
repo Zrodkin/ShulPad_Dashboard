@@ -109,7 +109,7 @@ function LoginPageContent() {
           </div>
 
           {/* Features list */}
-          <div className="w-full space-y-5 py-4">
+          <div className="w-full space-y-5 py-2 md:py-4">
             <FeatureRow text="View real-time donation analytics and insights" />
             <FeatureRow text="Manage donor information and relationships" />
             <FeatureRow text="Track transactions and generate detailed reports" />
@@ -164,8 +164,8 @@ function LoginPageContent() {
           {/* Terms text */}
           <p className="text-xs text-gray-600 text-center px-4 leading-relaxed">
             By continuing, you agree to connect your Square account to ShulPad.
-            <br />
-            We'll use this to process payments and manage your donations.
+            <br className="hidden md:inline" />
+            <span className="hidden md:inline"> We'll use this to process payments and manage your donations.</span>
           </p>
 
           {/* Support link */}
