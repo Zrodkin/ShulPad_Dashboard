@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Calendar, FileDown, TrendingUp, Users, DollarSign, Activity } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -330,32 +330,7 @@ export function ReportsContent() {
                   fontSize={12}
                   tickFormatter={(value) => `$${value}`}
                 />
-                <Tooltip
-                  wrapperStyle={{ zIndex: 1000 }}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "var(--radius)",
-                    fontSize: "12px",
-                    padding: "8px 12px",
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-                  }}
-                  labelStyle={{
-                    color: "hsl(var(--foreground))",
-                    fontWeight: "600",
-                    marginBottom: "4px",
-                  }}
-                  itemStyle={{
-                    color: "hsl(var(--foreground))",
-                  }}
-                  cursor={{ fill: "hsl(var(--muted) / 0.2)" }}
-                  formatter={(value: any, name: string) => {
-                    if (name === 'amount') return [`$${value.toFixed(2)}`, 'Amount']
-                    if (name === 'count') return [value, 'Donations']
-                    return [value, name]
-                  }}
-                />
-                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} activeBar={false} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
