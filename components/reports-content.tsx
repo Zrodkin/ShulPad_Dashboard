@@ -337,7 +337,18 @@ export function ReportsContent() {
                     border: "1px solid hsl(var(--border))",
                     borderRadius: "var(--radius)",
                     fontSize: "12px",
+                    padding: "8px 12px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
                   }}
+                  labelStyle={{
+                    color: "hsl(var(--foreground))",
+                    fontWeight: "600",
+                    marginBottom: "4px",
+                  }}
+                  itemStyle={{
+                    color: "hsl(var(--foreground))",
+                  }}
+                  cursor={{ fill: "hsl(var(--muted) / 0.2)" }}
                   formatter={(value: any, name: string) => {
                     if (name === 'amount') return [`$${value.toFixed(2)}`, 'Amount']
                     if (name === 'count') return [value, 'Donations']
