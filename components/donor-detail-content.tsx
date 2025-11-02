@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/components/ui/use-toast"
 
 interface DonationHistory {
   id: number
@@ -74,6 +75,7 @@ interface DonorDetailContentProps {
 }
 
 export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDonorUpdated }: DonorDetailContentProps) {
+  const { toast } = useToast()
   const [donor, setDonor] = useState<Donor | null>(null)
   const [donationHistory, setDonationHistory] = useState<DonationHistory[]>([])
   const [changeHistory, setChangeHistory] = useState<DonorChange[]>([])
@@ -193,7 +195,11 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
       }
     } catch (err) {
       console.error('Error updating donor:', err)
-      alert('Failed to update donor information')
+      toast({
+        title: "Error",
+        description: "Failed to update donor information",
+        variant: "destructive"
+      })
     } finally {
       setSaving(false)
       setConfirmDialogOpen(false)
@@ -217,10 +223,17 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
 
       // Refresh data
       fetchDonorDetails()
-      alert('Change reverted successfully')
+      toast({
+        title: "Success",
+        description: "Change reverted successfully",
+      })
     } catch (err) {
       console.error('Error reverting change:', err)
-      alert('Failed to revert change')
+      toast({
+        title: "Error",
+        description: "Failed to revert change",
+        variant: "destructive"
+      })
     } finally {
       setReverting(null)
     }
@@ -246,10 +259,17 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
 
       // Refresh data
       fetchChangeHistory()
-      alert('Change record deleted successfully')
+      toast({
+        title: "Success",
+        description: "Change record deleted successfully",
+      })
     } catch (err) {
       console.error('Error deleting change record:', err)
-      alert('Failed to delete change record')
+      toast({
+        title: "Error",
+        description: "Failed to delete change record",
+        variant: "destructive"
+      })
     } finally {
       setDeleting(null)
       setChangeToDelete(null)
