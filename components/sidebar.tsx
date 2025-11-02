@@ -40,17 +40,15 @@ export function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
-    // Fetch user session info
-    fetch('/api/dashboard/auth/session')
+    // Fetch merchant email from square_connections table
+    fetch('/api/dashboard/settings/email')
       .then(res => res.json())
       .then(data => {
-        if (data.authenticated && data.email) {
+        if (data.email) {
           setUserEmail(data.email)
-        } else if (data.authenticated && data.merchant_name) {
-          setUserEmail(data.merchant_name)
         }
       })
-      .catch(err => console.error('Failed to fetch session:', err))
+      .catch(err => console.error('Failed to fetch merchant email:', err))
   }, [])
 
   const handleLogout = async () => {
