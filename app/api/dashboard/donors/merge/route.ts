@@ -45,6 +45,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Collect all unique emails from donors being merged
+    const uniqueEmails = new Set<string>()
+    for (const donor of donors_to_merge) {
+      if (donor.email && donor.email.trim()) {
+        uniqueEmails.add(donor.email.trim())
+      }
+    }
+
+    // If primary donor has an email, ensure it's included
+    if (primary_donor.email && primary_donor.email.trim()) {
+      uniqueEmails.add(primary_donor.email.trim())
+    }
+
+    // Create comma-separated email list or use single email/null
+    const mergedEmail = uniqueEmails.size > 0
+      ? Array.from(uniqueEmails).join(', ')
+      : null
+
     const db = createClient()
 
     // Build the WHERE conditions for finding donations to merge
@@ -109,7 +127,7 @@ export async function POST(request: NextRequest) {
        WHERE sc.merchant_id = ?
          AND d.payment_status = 'COMPLETED'
          AND (${conditions.join(' OR ')})`,
-      [primary_donor.email, primary_donor.name, merchant_id, ...params]
+      [mergedEmail, primary_donor.name, merchant_id, ...params]
     )
 
     // Get updated statistics for the merged donor
@@ -127,10 +145,10 @@ export async function POST(request: NextRequest) {
       JOIN square_connections sc ON d.organization_id = sc.organization_id
       WHERE sc.merchant_id = ?
         AND d.payment_status = 'COMPLETED'
-        AND d.donor_email ${primary_donor.email ? '= ?' : 'IS NULL'}
+        AND d.donor_email ${mergedEmail ? '= ?' : 'IS NULL'}
         AND d.donor_name = ?`,
-      primary_donor.email
-        ? [merchant_id, primary_donor.email, primary_donor.name]
+      mergedEmail
+        ? [merchant_id, mergedEmail, primary_donor.name]
         : [merchant_id, primary_donor.name]
     )
 
@@ -140,7 +158,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Successfully merged ${donationsToUpdate} donations`,
       merged_donor: {
-        email: primary_donor.email,
+        email: mergedEmail,
         name: primary_donor.name,
         donation_count: parseInt(stats.donation_count),
         total_donated: parseFloat(stats.total_donated).toFixed(2),
