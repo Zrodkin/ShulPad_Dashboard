@@ -19,6 +19,7 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
   const [data, setData] = useState<ChartData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isMonthlyView, setIsMonthlyView] = useState(false)
 
   useEffect(() => {
     fetchChartData()
@@ -33,22 +34,31 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
       let periodParam = '30days'
       if (period === 'today') periodParam = '7days'
       else if (period === 'week') periodParam = '7days'
-      else if (period === 'all') periodParam = '30days'
-      
+      else if (period === 'all') periodParam = 'all'
+
       const response = await fetch(`/api/dashboard/charts?type=donations_over_time&period=${periodParam}`)
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch chart data')
       }
 
       const result = await response.json()
-      
-      // Transform API data to chart format
-      const chartData = (result.data || []).map((item: any) => ({
-        date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        amount: parseFloat(item.total),
-        count: parseInt(item.count),
-      }))
+      const rawData = result.data || []
+
+      // If there are more than 30 data points, group by month
+      let chartData
+      if (rawData.length > 30) {
+        chartData = groupByMonth(rawData)
+        setIsMonthlyView(true)
+      } else {
+        // Transform API data to chart format with daily view
+        chartData = rawData.map((item: any) => ({
+          date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          amount: parseFloat(item.total),
+          count: parseInt(item.count),
+        }))
+        setIsMonthlyView(false)
+      }
 
       setData(chartData)
     } catch (err: any) {
@@ -57,6 +67,37 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const groupByMonth = (data: any[]) => {
+    // Group data by month
+    const monthlyData: { [key: string]: { amount: number; count: number } } = {}
+
+    data.forEach((item: any) => {
+      const date = new Date(item.date)
+      const monthKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { amount: 0, count: 0 }
+      }
+
+      monthlyData[monthKey].amount += parseFloat(item.total)
+      monthlyData[monthKey].count += parseInt(item.count)
+    })
+
+    // Convert to array format for chart
+    return Object.entries(monthlyData)
+      .map(([date, data]) => ({
+        date,
+        amount: data.amount,
+        count: data.count,
+      }))
+      .sort((a, b) => {
+        // Sort chronologically
+        const dateA = new Date(a.date)
+        const dateB = new Date(b.date)
+        return dateA.getTime() - dateB.getTime()
+      })
   }
 
   if (error) {
@@ -74,7 +115,9 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base sm:text-lg">Donations Over Time</CardTitle>
-        <CardDescription className="text-xs sm:text-sm">Daily donation activity</CardDescription>
+        <CardDescription className="text-xs sm:text-sm">
+          {isMonthlyView ? 'Monthly donation activity' : 'Daily donation activity'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
