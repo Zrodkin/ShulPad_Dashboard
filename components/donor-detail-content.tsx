@@ -88,6 +88,8 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
   const [saving, setSaving] = useState(false)
   const [reverting, setReverting] = useState<number | null>(null)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false)
+  const [changeToDelete, setChangeToDelete] = useState<number | null>(null)
 
   useEffect(() => {
     fetchDonorDetails()
@@ -224,14 +226,19 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
     }
   }
 
-  const handleDeleteChange = async (changeId: number) => {
-    if (!confirm('Are you sure you want to delete this change record? This action cannot be undone and will permanently remove this history entry.')) {
-      return
-    }
+  const handleDeleteChange = (changeId: number) => {
+    setChangeToDelete(changeId)
+    setDeleteConfirmDialogOpen(true)
+  }
 
-    setDeleting(changeId)
+  const confirmDeleteChange = async () => {
+    if (!changeToDelete) return
+
+    setDeleting(changeToDelete)
+    setDeleteConfirmDialogOpen(false)
+
     try {
-      const response = await fetch(`/api/dashboard/donors/changes/${changeId}`, {
+      const response = await fetch(`/api/dashboard/donors/changes/${changeToDelete}`, {
         method: 'DELETE'
       })
 
@@ -245,6 +252,7 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
       alert('Failed to delete change record')
     } finally {
       setDeleting(null)
+      setChangeToDelete(null)
     }
   }
 
@@ -686,6 +694,46 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
 
           <DialogFooter>
             <Button onClick={() => setHistoryDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmDialogOpen} onOpenChange={setDeleteConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Delete Change Record</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this change record?
+            </DialogDescription>
+          </DialogHeader>
+
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Warning</AlertTitle>
+            <AlertDescription>
+              This action cannot be undone. This will permanently remove this history entry from the database.
+              The actual donor information will not be affected, only the history record will be deleted.
+            </AlertDescription>
+          </Alert>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteConfirmDialogOpen(false)
+                setChangeToDelete(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteChange}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Permanently
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
