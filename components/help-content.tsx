@@ -1,47 +1,31 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { BookOpen, MessageCircle, Mail, ExternalLink } from "lucide-react"
+import { Phone, MessageCircle, Mail } from "lucide-react"
 
 const helpResources = [
   {
-    title: "Documentation",
-    description: "Comprehensive guides and tutorials for using Shulpad",
-    icon: BookOpen,
-    action: "View Docs",
+    title: "Call",
+    description: "Speak directly with our support team",
+    icon: Phone,
+    action: "Call Now",
+    contact: "+1 (617) 903-2387",
+    href: "tel:+16179032387",
   },
   {
-    title: "Contact Support",
-    description: "Get help from our support team via email",
+    title: "Chat",
+    description: "Message us on WhatsApp for quick support",
+    icon: MessageCircle,
+    action: "Chat on WhatsApp",
+    contact: "+1 (617) 903-2387",
+    href: "https://wa.me/16179032387",
+  },
+  {
+    title: "Email",
+    description: "Send us an email and we'll respond shortly",
     icon: Mail,
     action: "Send Email",
-  },
-  {
-    title: "Community Forum",
-    description: "Connect with other Shulpad administrators",
-    icon: MessageCircle,
-    action: "Visit Forum",
-  },
-]
-
-const faqs = [
-  {
-    question: "How do I add a new kiosk?",
-    answer:
-      "Navigate to the Kiosks page and click the 'Add Kiosk' button. Fill in the location details and configuration settings.",
-  },
-  {
-    question: "Can I export donation data?",
-    answer: "Yes! Go to the Transactions page and click the 'Export' button to download your data in CSV format.",
-  },
-  {
-    question: "How do I set up a fundraising campaign?",
-    answer:
-      "Visit the Campaigns page, click 'New Campaign', and enter your goal amount, end date, and campaign details.",
-  },
-  {
-    question: "What payment methods are supported?",
-    answer:
-      "Shulpad supports all major credit cards, debit cards, and digital wallets through our secure payment integration.",
+    contact: "info@shulpad.com",
+    href: "mailto:info@shulpad.com",
   },
 ]
 
@@ -50,7 +34,7 @@ export function HelpContent() {
     <div className="p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-semibold text-foreground">Help & Support</h1>
-        <p className="text-muted-foreground mt-1">Find answers and get assistance</p>
+        <p className="text-muted-foreground mt-1">Get in touch with us</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -65,31 +49,22 @@ export function HelpContent() {
                 <CardTitle className="text-lg">{resource.title}</CardTitle>
                 <CardDescription>{resource.description}</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full gap-2 bg-transparent">
-                  {resource.action}
-                  <ExternalLink className="h-4 w-4" />
+              <CardContent className="space-y-3">
+                <p className="text-sm font-medium text-foreground">{resource.contact}</p>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 bg-transparent"
+                  asChild
+                >
+                  <a href={resource.href}>
+                    {resource.action}
+                  </a>
                 </Button>
               </CardContent>
             </Card>
           )
         })}
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Frequently Asked Questions</CardTitle>
-          <CardDescription>Quick answers to common questions</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {faqs.map((faq, index) => (
-            <div key={index} className="space-y-2">
-              <h3 className="font-semibold text-foreground">{faq.question}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{faq.answer}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   )
 }
