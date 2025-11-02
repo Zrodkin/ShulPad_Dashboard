@@ -103,15 +103,7 @@ function LoginPageContent() {
           {/* Title and subtitle */}
           <div className="text-center space-y-2">
             <h1
-              className="text-3xl md:text-4xl font-bold tracking-wide leading-tight"
-              style={{
-                background: "linear-gradient(135deg, rgb(140, 120, 214) 0%, rgb(143, 181, 255) 50%, rgb(247, 107, 107) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                textShadow: "0 2px 20px rgba(140, 120, 214, 0.3)",
-                letterSpacing: "0.02em",
-              }}
+              className="text-3xl md:text-4xl font-bold tracking-wide leading-tight text-black"
             >
               Welcome to ShulPad
             </h1>
