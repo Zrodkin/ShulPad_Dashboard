@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Line, LineChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Calendar, FileDown, TrendingUp, Users, DollarSign, Activity } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -315,7 +315,7 @@ export function ReportsContent() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300} key={`${dateRange}-${customStartDate}-${customEndDate}-${dailyData.length}`}>
-              <LineChart data={dailyData}>
+              <BarChart data={dailyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
                   dataKey="date"
@@ -343,18 +343,8 @@ export function ReportsContent() {
                     return [value, name]
                   }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ fill: "hsl(var(--primary))", r: 4 }}
-                  activeDot={{ r: 6 }}
-                  isAnimationActive={true}
-                  animationDuration={1500}
-                  animationEasing="ease-in-out"
-                />
-              </LineChart>
+                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
