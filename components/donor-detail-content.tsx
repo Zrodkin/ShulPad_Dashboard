@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Mail, Calendar, DollarSign, TrendingUp, Loader2, Edit, History, RotateCcw, AlertCircle } from "lucide-react"
+import { ArrowLeft, Mail, Calendar, DollarSign, TrendingUp, Loader2, Edit, History, RotateCcw, AlertCircle, Trash2 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -87,6 +87,7 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [reverting, setReverting] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState<number | null>(null)
 
   useEffect(() => {
     fetchDonorDetails()
@@ -220,6 +221,30 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
       alert('Failed to revert change')
     } finally {
       setReverting(null)
+    }
+  }
+
+  const handleDeleteChange = async (changeId: number) => {
+    if (!confirm('Are you sure you want to delete this change record? This action cannot be undone and will permanently remove this history entry.')) {
+      return
+    }
+
+    setDeleting(changeId)
+    try {
+      const response = await fetch(`/api/dashboard/donors/changes/${changeId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete change record')
+
+      // Refresh data
+      fetchChangeHistory()
+      alert('Change record deleted successfully')
+    } catch (err) {
+      console.error('Error deleting change record:', err)
+      alert('Failed to delete change record')
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -580,27 +605,48 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
                             {formatDate(change.changed_at)} by {change.changed_by}
                           </p>
                         </div>
-                        {!change.is_reverted && (
+                        <div className="flex gap-2">
+                          {!change.is_reverted && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRevertChange(change.id)}
+                              disabled={reverting === change.id || deleting === change.id}
+                              className="gap-2"
+                            >
+                              {reverting === change.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Reverting...
+                                </>
+                              ) : (
+                                <>
+                                  <RotateCcw className="h-4 w-4" />
+                                  Revert
+                                </>
+                              )}
+                            </Button>
+                          )}
                           <Button
-                            variant="outline"
+                            variant="destructive"
                             size="sm"
-                            onClick={() => handleRevertChange(change.id)}
-                            disabled={reverting === change.id}
+                            onClick={() => handleDeleteChange(change.id)}
+                            disabled={deleting === change.id || reverting === change.id}
                             className="gap-2"
                           >
-                            {reverting === change.id ? (
+                            {deleting === change.id ? (
                               <>
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                Reverting...
+                                Deleting...
                               </>
                             ) : (
                               <>
-                                <RotateCcw className="h-4 w-4" />
-                                Revert
+                                <Trash2 className="h-4 w-4" />
+                                Delete
                               </>
                             )}
                           </Button>
-                        )}
+                        </div>
                       </div>
 
                       <Separator />
