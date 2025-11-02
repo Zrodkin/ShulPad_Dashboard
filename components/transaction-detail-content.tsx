@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Transaction {
   id: number
@@ -55,6 +56,7 @@ interface Donor {
 }
 
 export function TransactionDetailContent({ transactionId, onBack, onNavigateToDonor }: TransactionDetailContentProps) {
+  const { toast } = useToast()
   const [transaction, setTransaction] = useState<Transaction | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -161,7 +163,11 @@ export function TransactionDetailContent({ transactionId, onBack, onNavigateToDo
       setSelectedDonorEmail('')
     } catch (err) {
       console.error('Error updating donor:', err)
-      alert('Failed to update donor information')
+      toast({
+        title: "Error",
+        description: "Failed to update donor information",
+        variant: "destructive"
+      })
     } finally {
       setSaving(false)
     }

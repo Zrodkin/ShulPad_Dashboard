@@ -92,6 +92,8 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
   const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false)
   const [changeToDelete, setChangeToDelete] = useState<number | null>(null)
+  const [revertConfirmDialogOpen, setRevertConfirmDialogOpen] = useState(false)
+  const [changeToRevert, setChangeToRevert] = useState<number | null>(null)
 
   useEffect(() => {
     fetchDonorDetails()
@@ -206,14 +208,18 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
     }
   }
 
-  const handleRevertChange = async (changeId: number) => {
-    if (!confirm('Are you sure you want to revert this change? This will update all affected transactions.')) {
-      return
-    }
+  const handleRevertChange = (changeId: number) => {
+    setChangeToRevert(changeId)
+    setRevertConfirmDialogOpen(true)
+  }
 
-    setReverting(changeId)
+  const confirmRevertChange = async () => {
+    if (!changeToRevert) return
+
+    setReverting(changeToRevert)
+    setRevertConfirmDialogOpen(false)
     try {
-      const response = await fetch(`/api/dashboard/donors/changes/${changeId}/revert`, {
+      const response = await fetch(`/api/dashboard/donors/changes/${changeToRevert}/revert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: 'Reverted via donor profile' })
@@ -236,6 +242,7 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
       })
     } finally {
       setReverting(null)
+      setChangeToRevert(null)
     }
   }
 
@@ -753,6 +760,43 @@ export function DonorDetailContent({ donorEmail, onBack, onViewTransaction, onDo
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revert Confirmation Dialog */}
+      <Dialog open={revertConfirmDialogOpen} onOpenChange={setRevertConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Revert Change</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to revert this change?
+            </DialogDescription>
+          </DialogHeader>
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Important</AlertTitle>
+            <AlertDescription>
+              This will update all affected transactions to their previous donor information.
+              The change will be marked as reverted in the history.
+            </AlertDescription>
+          </Alert>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRevertConfirmDialogOpen(false)
+                setChangeToRevert(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={confirmRevertChange}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Revert Change
             </Button>
           </DialogFooter>
         </DialogContent>
