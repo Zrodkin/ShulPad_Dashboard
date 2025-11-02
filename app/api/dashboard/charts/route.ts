@@ -54,20 +54,42 @@ export async function GET(request: NextRequest) {
     switch (chartType) {
       case 'donations_over_time': {
         // Daily donations grouped by date across all merchant organizations
+        // Include both donations table and receipt_log table
         const result = await db.execute(
           `SELECT
-            DATE(d.created_at) as date,
-            COUNT(d.id) as count,
-            SUM(d.amount) as total,
-            AVG(d.amount) as average
-          FROM donations d
-          JOIN square_connections sc ON d.organization_id = sc.organization_id
-          WHERE sc.merchant_id = ?
-            AND d.payment_status = 'COMPLETED'
-            ${dateFilter}
-          GROUP BY DATE(d.created_at)
+            date,
+            COUNT(*) as count,
+            SUM(amount) as total,
+            AVG(amount) as average
+          FROM (
+            SELECT
+              DATE(d.created_at) as date,
+              d.amount
+            FROM donations d
+            JOIN square_connections sc ON d.organization_id = sc.organization_id
+            WHERE sc.merchant_id = ?
+              AND d.payment_status = 'COMPLETED'
+              ${dateFilter}
+
+            UNION ALL
+
+            SELECT
+              DATE(rl.requested_at) as date,
+              rl.amount
+            FROM receipt_log rl
+            JOIN square_connections sc ON rl.organization_id = sc.organization_id
+            WHERE sc.merchant_id = ?
+              AND rl.delivery_status = 'sent'
+              ${dateFilter.replace('d.', 'rl.').replace('created_at', 'requested_at')}
+              AND rl.transaction_id NOT IN (
+                SELECT d2.payment_id FROM donations d2
+                JOIN square_connections sc2 ON d2.organization_id = sc2.organization_id
+                WHERE sc2.merchant_id = ?
+              )
+          ) combined
+          GROUP BY date
           ORDER BY date ASC`,
-          [merchant_id, ...dateParams]
+          [merchant_id, ...dateParams, merchant_id, ...dateParams, merchant_id]
         )
 
         chartData = {
