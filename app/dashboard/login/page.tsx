@@ -82,12 +82,12 @@ function LoginPageContent() {
         style={{
           background: "rgba(255, 255, 255, 0.85)",
           backdropFilter: "blur(10px)",
-          boxShadow: "0 10px 40px rgba(0, 0, 0, 0.1)",
+          boxShadow: "0 15px 50px rgba(0, 0, 0, 0.15)",
         }}
       >
-        <div className="flex flex-col items-center space-y-8">
+        <div className="flex flex-col items-center space-y-6 md:space-y-8">
           {/* Logo with glass morphism */}
-          <div className="mb-4">
+          <div className="mb-6 md:mb-4">
             <div
               className="relative w-24 h-24 rounded-full overflow-hidden"
               style={{
@@ -134,10 +134,10 @@ function LoginPageContent() {
               <p className="text-lg font-semibold text-black">Connecting to Square...</p>
             </div>
           ) : (
-            <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="w-full">
+            <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="w-full flex justify-center">
               <Button
                 type="submit"
-                className="w-full py-6 px-8 rounded-2xl font-semibold text-base transition-all duration-200 hover:shadow-lg"
+                className="w-10/12 md:w-full py-6 px-8 rounded-2xl font-semibold text-base transition-all duration-200 hover:shadow-lg"
                 style={{ backgroundColor: "black", color: "white" }}
                 disabled={loading}
               >
@@ -164,20 +164,20 @@ function LoginPageContent() {
           )}
 
           {/* Terms text */}
-          <p className="text-xs text-gray-600 text-center px-4 leading-relaxed">
+          <p className="text-xs text-[#5a5a5a] md:text-gray-600 text-center px-4 leading-relaxed">
             By continuing, you agree to connect your Square account to ShulPad.
             <br className="hidden md:inline" />
             <span className="hidden md:inline"> We'll use this to process payments and manage your donations.</span>
           </p>
 
           {/* Support link */}
-          <div className="flex items-center gap-2 text-sm pt-2">
+          <div className="flex items-center gap-2 text-sm pt-6 md:pt-2">
             <span className="text-black">Need help?</span>
             <a
               href="https://wa.me/16179032387"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-green-600 font-medium hover:underline transition-colors duration-200"
+              className="text-blue-500 md:text-green-600 font-medium hover:underline transition-colors duration-200"
             >
               Contact support
             </a>
