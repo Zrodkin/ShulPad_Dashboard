@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface ChartData {
@@ -85,7 +85,7 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
-            <LineChart data={data}>
+            <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
               <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
@@ -103,17 +103,8 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
                   return [value, name]
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="amount"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={{ fill: "hsl(var(--primary))", r: 4 }}
-                isAnimationActive={true}
-                animationDuration={1500}
-                animationEasing="ease-in-out"
-              />
-            </LineChart>
+              <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         )}
       </CardContent>
