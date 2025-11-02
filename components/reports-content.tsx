@@ -331,6 +331,7 @@ export function ReportsContent() {
                   tickFormatter={(value) => `$${value}`}
                 />
                 <Tooltip
+                  wrapperStyle={{ zIndex: 1000 }}
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",

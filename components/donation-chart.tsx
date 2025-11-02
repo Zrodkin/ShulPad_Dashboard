@@ -90,6 +90,7 @@ export function DonationChart({ period = "all" }: DonationChartProps) {
               <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
               <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} className="sm:text-xs" />
               <Tooltip
+                wrapperStyle={{ zIndex: 1000 }}
                 contentStyle={{
                   backgroundColor: "hsl(var(--card))",
                   border: "1px solid hsl(var(--border))",
